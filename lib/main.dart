@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -24,6 +25,22 @@ export 'src/pages/home_page.dart';
 void main() async {
   // 確保 Flutter 綁定初始化
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // 設置系統 UI 覆蓋層樣式（沉浸式導航欄）
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent, // 透明狀態欄
+      statusBarIconBrightness: Brightness.dark, // 深色圖標（亮色主題）
+      statusBarBrightness: Brightness.light, // iOS 使用
+      systemNavigationBarColor: Colors.transparent, // 透明導航欄
+      systemNavigationBarIconBrightness: Brightness.dark, // 深色圖標（亮色主題）
+    ),
+  );
+  
+  // 啟用邊緣到邊緣顯示
+  SystemChrome.setEnabledSystemUIMode(
+    SystemUiMode.edgeToEdge,
+  );
   
   // 初始化 Hive 本地儲存
   await Hive.initFlutter();
@@ -203,6 +220,20 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       child: Consumer<ThemeSettingsService>(
         builder: (context, themeService, child) {
           final seedColor = themeService.getSeedColor();
+          final isDarkMode = themeService.themeMode == ThemeMode.dark ||
+              (themeService.themeMode == ThemeMode.system &&
+                  MediaQuery.platformBrightnessOf(context) == Brightness.dark);
+          
+          // 根據主題模式動態設置系統 UI
+          SystemChrome.setSystemUIOverlayStyle(
+            SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: isDarkMode ? Brightness.light : Brightness.dark,
+              statusBarBrightness: isDarkMode ? Brightness.dark : Brightness.light,
+              systemNavigationBarColor: Colors.transparent,
+              systemNavigationBarIconBrightness: isDarkMode ? Brightness.light : Brightness.dark,
+            ),
+          );
           
           return MaterialApp(
             title: 'NTUT 課表查詢',
