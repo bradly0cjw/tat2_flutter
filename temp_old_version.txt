@@ -1,0 +1,805 @@
+import 'package:flutter/material.dart';
+import 'dart:convert';
+import '../services/course_color_service.dart';
+
+/// ?航??函??梯玨銵函?隞?/// 
+/// ?舀憿舐內嚗?/// - ?犖隤脰”
+/// - 敺桀飛蝔玨銵?/// - 摮貊?隤脰”
+/// - ?隤脰”
+class WeeklyCourseTable extends StatefulWidget {
+  final List<Map<String, dynamic>> courses;
+  final Function(Map<String, dynamic>)? onCourseTap;
+  final CourseColorService? colorService;
+  final GlobalKey? repaintKey; // ?冽?芸???key
+  
+  const WeeklyCourseTable({
+    super.key,
+    required this.courses,
+    this.onCourseTap,
+    this.colorService,
+    this.repaintKey,
+  });
+
+  @override
+  State<WeeklyCourseTable> createState() => _WeeklyCourseTableState();
+}
+
+class _WeeklyCourseTableState extends State<WeeklyCourseTable> {
+  // 蝺拙?隤脩?蝬脫,?踹?瘥活 build ?賡??啗?蝞?  Map<String, List<Map<String, dynamic>>>? _cachedCourseGrid;
+  int _cachedCoursesLength = -1; // 雿輻隤脩??賊?靘?瑟?阡?閬??啗?蝞?  bool _isInitialized = false; // 餈質馱?臬撌脣???憪?
+  
+  // 蝭甈⊥???蝢?  static const List<String> sectionTimes = [
+    '08:10-09:00',
+    '09:10-10:00',
+    '10:10-11:00',
+    '11:10-12:00',
+    '12:10-13:00',
+    '13:10-14:00',
+    '14:10-15:00',
+    '15:10-16:00',
+    '16:10-17:00',
+    '17:10-18:00',
+    '18:30-19:20',
+    '19:25-20:15',
+    '20:20-21:10',
+    '21:15-22:05',
+  ];
+  
+  static const List<String> weekDays = ['銝', '鈭?, '銝?, '??, '鈭?];
+  
+  @override
+  void initState() {
+    super.initState();
+    
+    // ??憿??????銝駁??脰??湔??孛?潘?
+    widget.colorService?.addListener(_onColorServiceChanged);
+    
+    // ??initState ???單?撱箄玨蝔雯???踹?擐活皜脫???撱園
+    if (widget.courses.isNotEmpty) {
+      _cachedCoursesLength = widget.courses.length;
+      _cachedCourseGrid = _buildCourseGrid();
+      _isInitialized = true;
+    }
+  }
+  
+  @override
+  void dispose() {
+    widget.colorService?.removeListener(_onColorServiceChanged);
+    super.dispose();
+  }
+  
+  void _onColorServiceChanged() {
+    // ?園??脫??霈???蝜芾ˊ隤脰”
+    if (mounted) {
+      setState(() {});
+    }
+  }
+  
+  /// 撠?甈∠揣撘??憿舐內??嚗?0+ 蝭甈⊿＊蝷箇 A, B, C...嚗?  String _getSectionLabel(int sectionIndex) {
+    final sectionNumber = sectionIndex + 1;
+    if (sectionNumber <= 9) {
+      return sectionNumber.toString();
+    } else {
+      // 10=A, 11=B, 12=C, 13=D, 14=E
+      return String.fromCharCode(55 + sectionNumber); // 65='A', ?隞?65-10=55
+    }
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    // 憒?????????憿舐內雿?蝚阡???曄征隤脰”
+    if (!_isInitialized && widget.courses.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
+    // 雿輻蝺拙??玨蝔雯???芸隤脩??豢??寡????閮?
+    final courseGrid = _getCachedCourseGrid();
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    // 閮?撖阡??玨??甈∠???    final sectionRange = _calculateSectionRange(courseGrid);
+    final minSection = sectionRange['min'] ?? 0;
+    final maxSection = sectionRange['max'] ?? 13;
+    
+    // 閮?瘥?撖砍漲(??蝭甈⊥???頝?
+    final dayWidth = (screenWidth - 16 - 32) / 5; // 16 for section, 32 for padding, 5 days
+    
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    // 瑽遣隤脰”??    final tableColumns = [
+      // 銵券嚗???      _buildHeader(context, dayWidth),
+      // 隤脰”?批捆嚗憿舐內?玨??甈∠???
+      ...() {
+        final widgets = <Widget>[];
+        for (int sectionIndex = minSection; sectionIndex <= maxSection; sectionIndex++) {
+          widgets.add(_buildSection(context, sectionIndex, courseGrid, dayWidth));
+          
+          // ?函洵 4 蝭敺溶??隡???蝚?4 蝭??index ??3嚗?          // ?芸?????券＊蝷箇????憿舐內
+          if (sectionIndex == 3 && maxSection >= 4) {
+            widgets.add(_buildLunchBreak(context, dayWidth));
+          }
+        }
+        return widgets;
+      }(),
+    ];
+    
+    // 甇?虜憿舐內?玨銵剁??舀遝??
+    final scrollableTable = Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: SingleChildScrollView(
+          child: Column(children: tableColumns),
+        ),
+      ),
+    );
+    
+    // ?芸??函?隤脰”嚗??湧?摨艾皛曉?嚗?    final captureTable = Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: tableColumns,
+        ),
+      ),
+    );
+    
+    // 憒???repaintKey嚗?閬??＊蝷箸迤撣貉玨銵典??梯???隤脰”
+    if (widget.repaintKey != null) {
+      return Stack(
+        children: [
+          // 甇?虜憿舐內?玨銵?          scrollableTable,
+          // ?梯???隤脰”嚗宏?啗撟?嚗??湧?摨佗?
+          Positioned(
+            left: -10000,
+            top: 0,
+            child: SizedBox(
+              width: screenWidth - 32, // ?迤撣貉玨銵典祝摨虫???              child: RepaintBoundary(
+                key: widget.repaintKey,
+                child: captureTable,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    
+    // 瘝? repaintKey ???芷＊蝷箸迤撣貉玨銵?    return scrollableTable;
+  }
+  
+  /// 閮?撖阡??玨??甈∠???  /// 餈? {'min': ??拍?甈∠揣撘? 'max': ???甈∠揣撘
+  Map<String, int> _calculateSectionRange(Map<String, List<Map<String, dynamic>>> courseGrid) {
+    if (courseGrid.isEmpty) {
+      // 瘝?隤脩?嚗＊蝷粹?閮剔???蝚?蝭?啁洵10蝭嚗?      return {'min': 0, 'max': 9};
+    }
+    
+    int minSection = 13; // ???賜?蝭甈?    int maxSection = 0;  // ??拙?賜?蝭甈?    
+    // ?風??玨蝔摮??曉??拙????蝭甈?    for (final key in courseGrid.keys) {
+      if (courseGrid[key]?.isEmpty ?? true) continue;
+      
+      // 閫?? key嚗撘 "??-蝭甈?嚗?憒?"銝-3" ??"銝-A"
+      final parts = key.split('-');
+      if (parts.length != 2) continue;
+      
+      final sectionStr = parts[1];
+      int sectionIndex;
+      
+      // ???詨???瘥耦撘?蝭甈?      if (int.tryParse(sectionStr) != null) {
+        sectionIndex = int.parse(sectionStr) - 1; // 頧???0-based index
+      } else {
+        // 摮?敶Ｗ?嚗=蝚?0蝭(index=9), B=蝚?1蝭(index=10), C=蝚?2蝭(index=11)...
+        final charCode = sectionStr.codeUnitAt(0);
+        sectionIndex = charCode - 56; // 'A'=65, 65-56=9
+      }
+      
+      if (sectionIndex >= 0 && sectionIndex < 14) {
+        minSection = minSection < sectionIndex ? minSection : sectionIndex;
+        maxSection = maxSection > sectionIndex ? maxSection : sectionIndex;
+      }
+    }
+    
+    // 憒?瘝??曉隞颱?隤脩?嚗???閮剔???    if (minSection > maxSection) {
+      return {'min': 0, 'max': 9};
+    }
+    
+    // ?箄隤踵憿舐內蝭?:?芷＊蝷箸?隤脩?蝭甈∠???    // 銝?撘瑕敺洵 1 蝭???＊蝷箏銝剖?
+    
+    return {'min': minSection, 'max': maxSection};
+  }
+  
+  Widget _buildLunchBreak(BuildContext context, double dayWidth) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    return Container(
+      height: 24,
+      color: isDark 
+          ? colorScheme.surfaceContainerHighest
+          : colorScheme.surfaceContainerHigh,
+      child: Row(
+        children: [
+          // 撌血蝭甈⊥?雿蔭
+          Container(
+            width: 16,
+            color: isDark 
+                ? colorScheme.surfaceContainerHighest
+                : Colors.grey.shade50,
+            child: Center(
+              child: Icon(
+                Icons.restaurant,
+                size: 12,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          // ????璈怨楊??予
+          Expanded(
+            child: Center(
+              child: Text(
+                '????',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildHeader(BuildContext context, double dayWidth) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark 
+            ? Theme.of(context).colorScheme.surfaceContainerHighest
+            : Theme.of(context).primaryColor.withOpacity(0.08),
+      ),
+      child: Row(
+        children: [
+          // 撌虫?閫?蝭甈∴?璆萄漲憯葬蝛粹?嚗?          SizedBox(
+            width: 16,
+            height: 32,
+            child: Center(
+              child: Text(
+                '',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 10,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ),
+          // ??
+          ...weekDays.map((day) {
+            return SizedBox(
+              width: dayWidth,
+              height: 32,
+              child: Center(
+                child: Text(
+                  '??day',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildSection(BuildContext context, int sectionIndex, Map<String, List<Map<String, dynamic>>> courseGrid, double dayWidth) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: isDark 
+                ? Theme.of(context).colorScheme.outline.withOpacity(0.3)
+                : Colors.grey.shade200,
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          // 蝭甈∠楊???舀 A/B/C 憿舐內嚗扔摨血?蝮桃征??
+          Container(
+            width: 16,
+            height: 65,
+            color: isDark 
+                ? Theme.of(context).colorScheme.surfaceContainerHighest
+                : Colors.grey.shade50,
+            child: Center(
+              child: Text(
+                _getSectionLabel(sectionIndex),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ),
+          // 瘥予?玨蝔?          ...weekDays.map((day) {
+            // ?舀?詨???瘥耦撘?橘?靘? "銝-10" ??"銝-A"嚗?            final sectionNumber = sectionIndex + 1;
+            String keyNum = '$day-$sectionNumber';
+            String keyLetter = '$day-${_getSectionLabel(sectionIndex)}';
+            
+            // ??閰行摮耦撘???閰血?瘥耦撘?            final coursesInSlot = courseGrid[keyNum] ?? courseGrid[keyLetter] ?? [];
+            
+            return Container(
+              width: dayWidth,
+              height: 65,
+              decoration: BoxDecoration(
+                border: Border(
+                  left: BorderSide(
+                    color: isDark 
+                        ? Theme.of(context).colorScheme.outline.withOpacity(0.3)
+                        : Colors.grey.shade200,
+                    width: 0.5,
+                  ),
+                ),
+              ),
+              child: coursesInSlot.isEmpty
+                  ? const SizedBox.shrink()
+                  : _buildCourseCard(context, coursesInSlot.first),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildCourseCard(BuildContext context, Map<String, dynamic> course) {
+    final courseId = course['courseId'] ?? '';
+    final courseName = course['courseName'] ?? '';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final seedColor = Theme.of(context).colorScheme.primary;
+    
+    // 雿輻 Material You 憸冽???脫???    final color = widget.colorService != null 
+        ? widget.colorService!.getCourseColor(
+            courseId, 
+            courseName,
+            isDark: isDark,
+            seedColor: seedColor,
+          )
+        : _generateColorFromCourseId(courseId);
+    
+    // ?脣?瞍詨惜憿蝯?    final gradientColors = widget.colorService != null
+        ? widget.colorService!.getCourseGradientColors(
+            courseId,
+            courseName,
+            isDark: isDark,
+            seedColor: seedColor,
+          )
+        : [
+            color,
+            color.withOpacity(0.85),
+            color.withOpacity(0.7),
+          ];
+    
+    final textColor = widget.colorService != null
+        ? widget.colorService!.getOnCourseColor(
+            courseId,
+            courseName,
+            isDark: isDark,
+            seedColor: seedColor,
+          )
+        : Colors.white;
+    
+    return Container(
+      margin: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        // ?芷????脫撓撅歹?????瘛勗漲??        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: gradientColors,
+          stops: const [0.0, 0.5, 1.0], // 瞍詨惜?腹暺?        ),
+        borderRadius: BorderRadius.circular(10),
+        // Material You 憸冽???敶?        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.25),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: widget.onCourseTap != null ? () => widget.onCourseTap!(course) : null,
+          onLongPress: widget.colorService != null ? () => _showColorPicker(context, course) : null,
+          borderRadius: BorderRadius.circular(10),
+          splashColor: Colors.white.withOpacity(0.2),
+          highlightColor: Colors.white.withOpacity(0.1),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  courseName,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
+                    height: 1.2,
+                    letterSpacing: 0.2,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+                if (course['classroom']?.isNotEmpty == true) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    course['classroom'],
+                    style: TextStyle(
+                      fontSize: 8.5,
+                      color: textColor.withOpacity(0.85),
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.1,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  /// 閫??隤脩??啁雯????-蝭甈?
+  /// ?脣?蝺拙??玨蝔雯???踹???閮?
+  Map<String, List<Map<String, dynamic>>> _getCachedCourseGrid() {
+    // 雿輻隤脩??賊?靘?瑟?阡?閬??啗?蝞??踹?撘瘥?撠??銴?蝞?    final currentLength = widget.courses.length;
+    if (_cachedCoursesLength != currentLength || _cachedCourseGrid == null) {
+      _cachedCoursesLength = currentLength;
+      _cachedCourseGrid = _buildCourseGrid();
+    }
+    return _cachedCourseGrid!;
+  }
+  
+  @override
+  void didUpdateWidget(WeeklyCourseTable oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // ?嗉玨蝔?霈?,蝡?瑽遣隤脩?蝬脫
+    if (oldWidget.courses.length != widget.courses.length) {
+      _cachedCoursesLength = widget.courses.length;
+      if (widget.courses.isNotEmpty) {
+        _cachedCourseGrid = _buildCourseGrid();
+        _isInitialized = true;
+      } else {
+        _cachedCourseGrid = null;
+        _isInitialized = false;
+      }
+    }
+  }
+  
+  Map<String, List<Map<String, dynamic>>> _buildCourseGrid() {
+    final grid = <String, List<Map<String, dynamic>>>{};
+    
+    for (final course in widget.courses) {
+      // 閫????鞈?
+      final scheduleJson = course['schedule'] as String?;
+      if (scheduleJson == null || scheduleJson.isEmpty) continue;
+      
+      try {
+        final schedule = json.decode(scheduleJson) as Map<String, dynamic>;
+        
+        // ?風瘥???        schedule.forEach((day, sections) {
+          if (sections == null || sections.toString().trim().isEmpty) return;
+          
+          // 閫??蝭甈∴?靘?嚗?3 4" ??"7 8"嚗?          final sectionList = sections.toString().trim().split(' ');
+          
+          for (final sectionStr in sectionList) {
+            if (sectionStr.isEmpty) continue;
+            
+            final key = '$day-$sectionStr';
+            grid[key] = grid[key] ?? [];
+            grid[key]!.add(course);
+          }
+        });
+      } catch (e) {
+        debugPrint('[WeeklyCourseTable] 閫??隤脩???憭望?: $e');
+      }
+    }
+    
+    return grid;
+  }
+  
+  /// ?寞?隤脰???憿
+  Color _generateColorFromCourseId(String courseId) {
+    if (courseId.isEmpty) return Colors.blue;
+    
+    final hash = courseId.hashCode;
+    final colors = [
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.teal,
+      Colors.pink,
+      Colors.indigo,
+      Colors.amber,
+      Colors.cyan,
+      Colors.lime,
+    ];
+    
+    return colors[hash.abs() % colors.length];
+  }
+  
+  /// 憿舐內憿?豢???- Material You 憸冽
+  void _showColorPicker(BuildContext context, Map<String, dynamic> course) {
+    final courseName = course['courseName'] ?? '';
+    final courseId = course['courseId'] ?? '';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final seedColor = Theme.of(context).colorScheme.primary;
+    
+    // ?脣??嗅?憿
+    final currentColor = widget.colorService?.getCourseColor(
+      courseId, 
+      courseName,
+      isDark: isDark,
+      seedColor: seedColor,
+    );
+    
+    // ?脣??舐憿嚗aterial You 憸冽 - 16 蝔殷?
+    final availableColors = widget.colorService?.getAvailableColors(
+      isDark: isDark,
+      seedColor: seedColor,
+    ) ?? [];
+    
+    // ?脣??嗅?憿?揣撘?    final currentIndex = widget.colorService?.getColorIndex(
+      courseId,
+      courseName,
+      currentColor!,
+      isDark: isDark,
+      seedColor: seedColor,
+    );
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '?豢?隤脩?憿',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              courseName,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '32 蝔桃移?賊??莎?銝駁?瞍貉? + 敶抵?脩頂',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 蝚砌?蝯?銝駁?瞍貉???                Row(
+                  children: [
+                    Icon(
+                      Icons.palette,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '銝駁?瞍貉???,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  alignment: WrapAlignment.start,
+                  children: List.generate(16, (index) {
+                    final color = availableColors[index];
+                    final isSelected = currentIndex == index;
+                    return GestureDetector(
+                      onTap: () async {
+                        await widget.colorService?.setCourseColorIndex(
+                          courseId, 
+                          courseName, 
+                          index,
+                        );
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          setState(() {});
+                        }
+                      },
+                      child: Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                          border: isSelected 
+                              ? Border.all(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  width: 3.5,
+                                )
+                              : Border.all(
+                                  color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                                  width: 1,
+                                ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: color.withOpacity(isSelected ? 0.5 : 0.3),
+                              blurRadius: isSelected ? 8 : 4,
+                              offset: const Offset(0, 2),
+                              spreadRadius: isSelected ? 1 : 0,
+                            ),
+                          ],
+                        ),
+                        child: isSelected
+                            ? Icon(
+                                Icons.check_rounded,
+                                color: color.computeLuminance() > 0.5 
+                                    ? Colors.black87 
+                                    : Colors.white,
+                                size: 26,
+                              )
+                            : null,
+                      ),
+                    );
+                  }).toList(),
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // 蝚砌?蝯??敶抵??                Row(
+                  children: [
+                    Icon(
+                      Icons.color_lens,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.secondary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '敶抵?脩頂',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: Theme.of(context).colorScheme.secondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  alignment: WrapAlignment.start,
+                  children: List.generate(16, (index) {
+                    final actualIndex = index + 16;
+                    final color = availableColors[actualIndex];
+                    final isSelected = currentIndex == actualIndex;
+                    return GestureDetector(
+                      onTap: () async {
+                        await widget.colorService?.setCourseColorIndex(
+                          courseId, 
+                          courseName, 
+                          actualIndex,
+                        );
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          setState(() {});
+                        }
+                      },
+                      child: Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                          border: isSelected 
+                              ? Border.all(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  width: 3.5,
+                                )
+                              : Border.all(
+                                  color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                                  width: 1,
+                                ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: color.withOpacity(isSelected ? 0.5 : 0.3),
+                              blurRadius: isSelected ? 8 : 4,
+                              offset: const Offset(0, 2),
+                              spreadRadius: isSelected ? 1 : 0,
+                            ),
+                          ],
+                        ),
+                        child: isSelected
+                            ? Icon(
+                                Icons.check_rounded,
+                                color: color.computeLuminance() > 0.5 
+                                    ? Colors.black87 
+                                    : Colors.white,
+                                size: 26,
+                              )
+                            : null,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () async {
+              await widget.colorService?.resetCourseColor(courseId, courseName);
+              if (context.mounted) {
+                Navigator.pop(context);
+                setState(() {});
+              }
+            },
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('?蔭'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('摰?'),
+          ),
+        ],
+      ),
+    );
+  }
+}

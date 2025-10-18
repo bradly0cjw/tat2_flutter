@@ -76,11 +76,35 @@ class PersonalizationPage extends StatelessWidget {
               ),
             ),
           ),
+          Consumer<ThemeSettingsService>(
+            builder: (context, themeService, child) {
+              return ListTile(
+                leading: Icon(themeService.courseTableStyleIcon),
+                title: const Text('課表風格'),
+                subtitle: Text(themeService.courseTableStyleName),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _showCourseTableStyleDialog(context, themeService),
+              );
+            },
+          ),
+          const Divider(),
+          Consumer<ThemeSettingsService>(
+            builder: (context, themeService, child) {
+              return ListTile(
+                leading: Icon(themeService.courseColorStyleIcon),
+                title: const Text('課程配色'),
+                subtitle: Text(themeService.courseColorStyleName),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _showCourseColorStyleDialog(context, themeService),
+              );
+            },
+          ),
+          const Divider(),
           ListTile(
-            leading: const Icon(Icons.color_lens),
-            title: Text(l10n.courseColor),
-            subtitle: Text(l10n.courseColorHint),
-            trailing: const Icon(Icons.info_outline),
+            leading: const Icon(Icons.info_outline),
+            title: const Text('課程顏色說明'),
+            subtitle: const Text('訂製屬於你自己的課表'),
+            trailing: const Icon(Icons.chevron_right),
             onTap: () => _showCourseColorInfoDialog(context),
           ),
           const Divider(),
@@ -235,6 +259,160 @@ class PersonalizationPage extends StatelessWidget {
     );
   }
   
+  void _showCourseTableStyleDialog(BuildContext context, ThemeSettingsService themeService) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('選擇課表風格'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RadioListTile<CourseTableStyle>(
+              title: const Text('Material 3 風格'),
+              subtitle: const Text('懸浮卡片設計，現代化視覺'),
+              secondary: const Icon(Icons.layers),
+              value: CourseTableStyle.material3,
+              groupValue: themeService.courseTableStyle,
+              onChanged: (value) {
+                if (value != null) {
+                  themeService.setCourseTableStyle(value);
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('已切換至 Material 3 風格課表'),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+            ),
+            RadioListTile<CourseTableStyle>(
+              title: const Text('經典風格'),
+              subtitle: const Text('表格式佈局，緊湊簡潔'),
+              secondary: const Icon(Icons.grid_on),
+              value: CourseTableStyle.classic,
+              groupValue: themeService.courseTableStyle,
+              onChanged: (value) {
+                if (value != null) {
+                  themeService.setCourseTableStyle(value);
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('已切換至經典風格課表'),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+            ),
+            RadioListTile<CourseTableStyle>(
+              title: const Text('TAT 傳統風格'),
+              subtitle: const Text('緊湊表格，馬卡龍色系'),
+              secondary: const Icon(Icons.table_chart),
+              value: CourseTableStyle.tat,
+              groupValue: themeService.courseTableStyle,
+              onChanged: (value) {
+                if (value != null) {
+                  themeService.setCourseTableStyle(value);
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('已切換至 TAT 傳統風格課表'),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  void _showCourseColorStyleDialog(BuildContext context, ThemeSettingsService themeService) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('選擇課程配色'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RadioListTile<CourseColorStyle>(
+              title: const Text('TAT 配色'),
+              subtitle: const Text('柔和的馬卡龍色系'),
+              secondary: const Icon(Icons.palette_outlined),
+              value: CourseColorStyle.tat,
+              groupValue: themeService.courseColorStyle,
+              onChanged: (value) {
+                if (value != null) {
+                  themeService.setCourseColorStyle(value);
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('已切換至 TAT 配色'),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+            ),
+            RadioListTile<CourseColorStyle>(
+              title: const Text('主題配色'),
+              subtitle: const Text('根據主題色生成'),
+              secondary: const Icon(Icons.color_lens),
+              value: CourseColorStyle.theme,
+              groupValue: themeService.courseColorStyle,
+              onChanged: (value) {
+                if (value != null) {
+                  themeService.setCourseColorStyle(value);
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('已切換至主題配色'),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+            ),
+            RadioListTile<CourseColorStyle>(
+              title: const Text('彩虹配色'),
+              subtitle: const Text('經典彩虹色系'),
+              secondary: const Icon(Icons.gradient),
+              value: CourseColorStyle.rainbow,
+              groupValue: themeService.courseColorStyle,
+              onChanged: (value) {
+                if (value != null) {
+                  themeService.setCourseColorStyle(value);
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('已切換至彩虹配色'),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
   void _showLanguageDialog(BuildContext context, ThemeSettingsService themeService) {
     final l10n = AppLocalizations.of(context);
     showDialog(
@@ -287,57 +465,98 @@ class PersonalizationPage extends StatelessWidget {
   }
   
   void _showCourseColorInfoDialog(BuildContext context) {
+    final themeService = Provider.of<ThemeSettingsService>(context, listen: false);
+    final colorStyle = themeService.courseColorStyle;
+    
+    // 根據配色風格顯示不同的說明
+    String title;
+    String description;
+    List<String> features;
+    
+    switch (colorStyle) {
+      case CourseColorStyle.tat:
+        title = 'TAT 馬卡龍配色';
+        description = '柔和的粉彩色系，提供 13 種精選顏色：';
+        features = [
+          '柔和的馬卡龍色調',
+          '保護眼睛的淺色系',
+          '高辨識度的色彩搭配',
+        ];
+        break;
+      case CourseColorStyle.theme:
+        title = '主題動態配色';
+        description = '根據您的主題色生成 16 種和諧配色：';
+        features = [
+          '與主題色完美融合',
+          '冷暖色調漸變搭配',
+          '自動適配亮暗模式',
+        ];
+        break;
+      case CourseColorStyle.rainbow:
+        title = '彩虹色系配色';
+        description = '經典的彩虹色譜，提供 16 種鮮明顏色：';
+        features = [
+          '色相均勻分布',
+          '最大化辨識度',
+          '獨立於主題色',
+        ];
+        break;
+    }
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        icon: const Icon(Icons.palette, size: 48),
-        title: const Text('課程顏色'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Material You 動態配色',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+        icon: Icon(
+          colorStyle == CourseColorStyle.tat 
+              ? Icons.palette_outlined
+              : colorStyle == CourseColorStyle.theme
+                  ? Icons.color_lens
+                  : Icons.gradient,
+          size: 48,
+        ),
+        title: Text(title),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                description,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              '課程顏色會自動根據您選擇的主題色生成和諧的配色方案，確保：',
-            ),
-            const SizedBox(height: 8),
-            _buildInfoPoint('•', '與主題完美融合'),
-            _buildInfoPoint('•', '保持高辨識度'),
-            _buildInfoPoint('•', '自動適配亮暗模式'),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.touch_app,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      '長按課表中的任一課程\n即可自訂專屬顏色',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.w500,
+              const SizedBox(height: 12),
+              ...features.map((feature) => _buildInfoPoint('•', feature)),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.touch_app,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        '長按課表中的任一課程\n即可自訂專屬顏色',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           FilledButton(
@@ -367,6 +586,23 @@ class PersonalizationPage extends StatelessWidget {
   }
   
   void _showReassignColorsDialog(BuildContext context) {
+    final themeService = Provider.of<ThemeSettingsService>(context, listen: false);
+    final colorStyle = themeService.courseColorStyle;
+    
+    // 根據配色風格顯示不同的說明
+    String colorSystemName;
+    switch (colorStyle) {
+      case CourseColorStyle.tat:
+        colorSystemName = 'TAT 馬卡龍色系';
+        break;
+      case CourseColorStyle.theme:
+        colorSystemName = '主題漸變色系';
+        break;
+      case CourseColorStyle.rainbow:
+        colorSystemName = '彩虹色系';
+        break;
+    }
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -376,45 +612,47 @@ class PersonalizationPage extends StatelessWidget {
           color: Theme.of(context).colorScheme.primary,
         ),
         title: const Text('重新隨機分配顏色'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '此操作將：',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            _buildInfoPoint('•', '清除所有自訂顏色'),
-            _buildInfoPoint('•', '重新自動分配課程顏色'),
-            _buildInfoPoint('•', '使用主題漸變色系'),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(12),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '此操作將：',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.warning_amber_rounded,
-                    color: Theme.of(context).colorScheme.onErrorContainer,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      '此操作無法復原',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onErrorContainer,
-                        fontWeight: FontWeight.w500,
+              const SizedBox(height: 12),
+              _buildInfoPoint('•', '清除所有自訂顏色'),
+              _buildInfoPoint('•', '重新自動分配課程顏色'),
+              _buildInfoPoint('•', '使用 $colorSystemName'),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        '此操作無法復原',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onErrorContainer,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -428,7 +666,7 @@ class PersonalizationPage extends StatelessWidget {
               
               // 調試：顯示分配結果
               final colorIndices = courseColorService.getAllCourseColorIndices();
-              print('📊 課程顏色分配結果（共 ${colorIndices.length} 個）：');
+              print(' 課程顏色分配結果（共 ${colorIndices.length} 個）：');
               final sortedEntries = colorIndices.entries.toList()
                 ..sort((a, b) => a.key.compareTo(b.key));
               for (final entry in sortedEntries) {
@@ -441,12 +679,12 @@ class PersonalizationPage extends StatelessWidget {
                 indexCounts[entry.value] ??= [];
                 indexCounts[entry.value]!.add(entry.key);
               }
-              print('📊 顏色使用統計：');
+              print(' 顏色使用統計：');
               for (final entry in indexCounts.entries) {
                 if (entry.value.length > 1) {
-                  print('  ⚠️  索引 ${entry.key} 被 ${entry.value.length} 個課程使用: ${entry.value.join(", ")}');
+                  print('    索引 ${entry.key} 被 ${entry.value.length} 個課程使用: ${entry.value.join(", ")}');
                 } else {
-                  print('  ✓ 索引 ${entry.key}: ${entry.value[0]}');
+                  print('   索引 ${entry.key}: ${entry.value[0]}');
                 }
               }
               
@@ -454,7 +692,7 @@ class PersonalizationPage extends StatelessWidget {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: const Text('已重新分配課程顏色'),
+                    content: Text('已使用 $colorSystemName 重新分配課程顏色'),
                     backgroundColor: Theme.of(context).colorScheme.primary,
                     behavior: SnackBarBehavior.floating,
                     duration: const Duration(seconds: 2),
@@ -462,7 +700,7 @@ class PersonalizationPage extends StatelessWidget {
                 );
               }
             },
-            child: const Text('確定重新分配'),
+            child: const Text('確定'),
           ),
         ],
       ),

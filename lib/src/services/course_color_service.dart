@@ -1,11 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:math' as math;
+import 'theme_settings_service.dart';
 
 /// 課程顏色管理服務 - 基於 Material You 動態配色
 class CourseColorService extends ChangeNotifier {
   static const String _boxName = 'course_colors';
   Box? _box;
+  
+  // TAT 風格的馬卡龍色系（柔和的粉彩色調）
+  static const List<Color> tatCourseColors = [
+    Color(0xffffccbc), // 淺橙色
+    Color(0xffffe0b2), // 淺琥珀色
+    Color(0xffffecb3), // 淺黃色
+    Color(0xfffff9c4), // 淺檸檬色
+    Color(0xfff0f4c3), // 淺青檸色
+    Color(0xffdcedc8), // 淺綠色
+    Color(0xffc8e6c9), // 中綠色
+    Color(0xffb2dfdb), // 淺青色
+    Color(0xffb3e5fc), // 淺天藍色
+    Color(0xffbbdefb), // 淺藍色
+    Color(0xffe1bee7), // 淺紫色
+    Color(0xfff8bbd0), // 淺粉色
+    Color(0xffffcdd2), // 淺紅色
+  ];
+  
+  // TAT 配色的課程映射表（課號 -> 顏色索引）
+  final Map<String, int> _tatColorMap = {};
+  
+  // 當前的配色風格
+  CourseColorStyle? _colorStyle;
   
   // Material You 風格的配色方案 - 16 種主題漸變色
   // 4×4 排列：橫向色相漸變（冷→暖），縱向明度漸變（淺→深）
@@ -67,9 +91,52 @@ class CourseColorService extends ChangeNotifier {
     _box = await Hive.openBox(_boxName);
   }
   
-  /// 獲取課程顏色 - Material You 風格
+  /// 設定配色風格
+  void setColorStyle(CourseColorStyle style) {
+    _colorStyle = style;
+    
+    // 如果切換到 TAT 配色，需要初始化 TAT 顏色映射
+    if (style == CourseColorStyle.tat) {
+      _initTatColorMap();
+    }
+    
+    notifyListeners();
+  }
+  
+  /// 初始化 TAT 顏色映射表
+  void _initTatColorMap() {
+    if (_box == null) return;
+    
+    _tatColorMap.clear();
+    
+    // 獲取所有課程的課號列表
+    final courseIds = <String>{};
+    for (final key in _box!.keys) {
+      if (key is String && key.contains('_')) {
+        final parts = key.split('_');
+        if (parts.isNotEmpty) {
+          courseIds.add(parts[0]);
+        }
+      }
+    }
+    
+    // 打亂順序並分配顏色（與 TAT 一致）
+    final colors = List.generate(tatCourseColors.length, (i) => i)..shuffle();
+    
+    int index = 0;
+    for (final courseId in courseIds) {
+      _tatColorMap[courseId] = colors[index % colors.length];
+      index++;
+    }
+  }
+  
+  /// 獲取課程顏色 - 支援三種配色風格
   /// 
-  /// 根據課程 ID 和名稱生成和諧的顏色，並根據主題自動調整
+  /// 根據配色風格返回不同的顏色：
+  /// - TAT 配色：馬卡龍色系
+  /// - 主題配色：根據主題色生成（索引 0-15）
+  /// - 彩虹配色：通用彩虹色（索引 16-31）
+  /// 
   /// [isDark] 是否為深色模式
   /// [seedColor] 主題的種子顏色，用於生成和諧的配色
   Color getCourseColor(
@@ -77,10 +144,19 @@ class CourseColorService extends ChangeNotifier {
     String courseName, {
     bool isDark = false,
     Color? seedColor,
+    CourseColorStyle? colorStyle,
   }) {
     // 如果服務未初始化，返回預設藍色
     if (_box == null) {
       return seedColor ?? const Color(0xFF2196F3);
+    }
+    
+    // 使用傳入的配色風格，如果沒有則使用服務設定的風格
+    final style = colorStyle ?? _colorStyle ?? CourseColorStyle.theme;
+    
+    // TAT 配色：使用馬卡龍色系
+    if (style == CourseColorStyle.tat) {
+      return _getTatColor(courseId, courseName);
     }
     
     final key = _getCourseKey(courseId, courseName);
@@ -88,8 +164,10 @@ class CourseColorService extends ChangeNotifier {
     
     // 如果已有儲存的顏色索引，直接使用
     if (colorIndex != null && colorIndex is int) {
+      // 根據配色風格決定索引範圍
+      final adjustedIndex = _adjustIndexForStyle(colorIndex, style);
       return _generateColorFromIndex(
-        colorIndex,
+        adjustedIndex,
         isDark: isDark,
         seedColor: seedColor,
       );
@@ -99,10 +177,10 @@ class CourseColorService extends ChangeNotifier {
     // 獲取已使用的顏色索引
     final usedIndices = _getUsedColorIndices();
     
-    // 使用優化序列
-    final optimizedSequence = [
-      0, 10, 4, 14, 2, 8, 6, 12, 1, 11, 5, 15, 3, 9, 7, 13,
-    ];
+    // 根據配色風格選擇優化序列
+    final optimizedSequence = style == CourseColorStyle.rainbow
+        ? [16, 26, 20, 30, 18, 24, 22, 28, 17, 27, 21, 31, 19, 25, 23, 29] // 彩虹色索引
+        : [0, 10, 4, 14, 2, 8, 6, 12, 1, 11, 5, 15, 3, 9, 7, 13]; // 主題色索引
     
     int selectedIndex;
     
@@ -131,6 +209,63 @@ class CourseColorService extends ChangeNotifier {
       isDark: isDark,
       seedColor: seedColor,
     );
+  }
+  
+  /// 獲取 TAT 配色
+  Color _getTatColor(String courseId, String courseName) {
+    // 如果已有映射，直接返回
+    if (_tatColorMap.containsKey(courseId)) {
+      final index = _tatColorMap[courseId]!;
+      return tatCourseColors[index % tatCourseColors.length];
+    }
+    
+    // 否則分配新顏色
+    final usedIndices = _tatColorMap.values.toSet();
+    final colors = List.generate(tatCourseColors.length, (i) => i);
+    
+    // 找到第一個未使用的索引
+    int selectedIndex = colors.firstWhere(
+      (index) => !usedIndices.contains(index),
+      orElse: () {
+        // 如果都用完了，用 hash 分配
+        final hash = courseName.hashCode.abs();
+        return hash % tatCourseColors.length;
+      },
+    );
+    
+    _tatColorMap[courseId] = selectedIndex;
+    return tatCourseColors[selectedIndex];
+  }
+  
+  /// 根據配色風格調整索引（向前兼容）
+  /// 
+  /// 處理切換配色風格時索引可能超出範圍的問題：
+  /// - TAT 配色：13 種顏色（索引 0-12）
+  /// - 主題配色：16 種顏色（索引 0-15）
+  /// - 彩虹配色：16 種顏色（索引 16-31）
+  int _adjustIndexForStyle(int index, CourseColorStyle style) {
+    if (style == CourseColorStyle.tat) {
+      // 切換到 TAT 配色：任何索引都映射到 0-12
+      return index % tatCourseColors.length;
+    } else if (style == CourseColorStyle.rainbow) {
+      // 切換到彩虹配色：
+      // - 如果索引在 0-15（主題色範圍），映射到 16-31
+      // - 如果索引 >= 16（已經是彩虹色），保持在 16-31 範圍內
+      if (index < 16) {
+        return index + 16;
+      }
+      // 索引 >= 16，確保在 16-31 範圍內
+      return 16 + ((index - 16) % 16);
+    } else {
+      // 切換到主題配色（CourseColorStyle.theme）：
+      // - 如果索引在 16-31（彩虹色範圍），映射到 0-15
+      // - 如果索引 < 16（已經是主題色），保持在 0-15 範圍內
+      if (index >= 16) {
+        return (index - 16) % 16;
+      }
+      // 索引 < 16，確保在 0-15 範圍內
+      return index % 16;
+    }
   }
   
   /// 根據索引生成顏色
@@ -331,6 +466,7 @@ class CourseColorService extends ChangeNotifier {
     Color color, {
     bool isDark = false,
     Color? seedColor,
+    CourseColorStyle? colorStyle,
   }) {
     // 檢查是否有存儲的索引
     if (_box != null) {
@@ -339,6 +475,24 @@ class CourseColorService extends ChangeNotifier {
       if (storedIndex != null && storedIndex is int) {
         return storedIndex;
       }
+    }
+    
+    // 使用傳入的配色風格，如果沒有則使用服務設定的風格
+    final style = colorStyle ?? _colorStyle ?? CourseColorStyle.theme;
+    
+    // 如果是 TAT 配色，檢查本地映射表
+    if (style == CourseColorStyle.tat) {
+      if (_tatColorMap.containsKey(courseId)) {
+        return _tatColorMap[courseId];
+      }
+      
+      // 在 TAT 色系中找最接近的顏色
+      for (int i = 0; i < tatCourseColors.length; i++) {
+        if (tatCourseColors[i].value == color.value) {
+          return i;
+        }
+      }
+      return null;
     }
     
     // 如果沒有存儲，嘗試找到最接近的顏色索引
@@ -619,7 +773,16 @@ class CourseColorService extends ChangeNotifier {
     String courseName, {
     bool isDark = false,
     Color? seedColor,
+    CourseColorStyle? colorStyle,
   }) {
+    // 使用傳入的配色風格，如果沒有則使用服務設定的風格
+    final style = colorStyle ?? _colorStyle ?? CourseColorStyle.theme;
+    
+    // TAT 配色：固定使用黑色文字
+    if (style == CourseColorStyle.tat) {
+      return Colors.black87;
+    }
+    
     // 淺色模式：強制使用黑色文字（所有背景色都已優化為淺色）
     // 深色模式：根據亮度自動判斷
     if (!isDark) {
@@ -631,6 +794,7 @@ class CourseColorService extends ChangeNotifier {
       courseName,
       isDark: isDark,
       seedColor: seedColor,
+      colorStyle: style,
     );
     
     // 計算顏色的相對亮度
@@ -654,12 +818,14 @@ class CourseColorService extends ChangeNotifier {
     String courseName, {
     bool isDark = false,
     Color? seedColor,
+    CourseColorStyle? colorStyle,
   }) {
     final baseColor = getCourseColor(
       courseId,
       courseName,
       isDark: isDark,
       seedColor: seedColor,
+      colorStyle: colorStyle,
     );
     
     // 使用顏色混合而非 HSL 調整，確保視覺效果統一

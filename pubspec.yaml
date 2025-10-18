@@ -36,6 +36,7 @@ dependencies:
 
   # UI & Icons
   cupertino_icons: ^1.0.8
+  auto_size_text: ^3.0.0
   
   # HTTP & Network
   http: ^1.2.0
