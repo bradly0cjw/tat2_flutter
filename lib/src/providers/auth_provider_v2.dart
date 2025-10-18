@@ -105,8 +105,17 @@ class AuthProviderV2 with ChangeNotifier {
         debugPrint('[AuthProvider] 自動登入成功');
         _error = null;
       } else {
-        debugPrint('[AuthProvider] 自動登入失敗: ${result.message}');
-        _error = result.message;
+        final errorMsg = result.message ?? '';
+        debugPrint('[AuthProvider] 自動登入失敗: $errorMsg');
+        _error = errorMsg;
+        
+        // 如果是網路錯誤，不視為致命錯誤
+        if (errorMsg.contains('connection') ||
+            errorMsg.contains('host lookup') ||
+            errorMsg.contains('network') ||
+            errorMsg.contains('Socket')) {
+          debugPrint('[AuthProvider] 網路連接失敗，進入離線模式');
+        }
       }
 
       _isLoading = false;
@@ -114,10 +123,20 @@ class AuthProviderV2 with ChangeNotifier {
 
       return result.success;
     } catch (e, stackTrace) {
-      _error = '自動登入錯誤: $e';
+      final errorStr = e.toString();
+      _error = '自動登入錯誤: $errorStr';
       _isLoading = false;
       notifyListeners();
       debugPrint('[AuthProvider] 自動登入錯誤: $e\n$stackTrace');
+      
+      // 檢查是否為網路錯誤
+      if (errorStr.contains('connection') ||
+          errorStr.contains('host lookup') ||
+          errorStr.contains('network') ||
+          errorStr.contains('Socket')) {
+        debugPrint('[AuthProvider] 網路異常，進入離線模式');
+      }
+      
       return false;
     }
   }

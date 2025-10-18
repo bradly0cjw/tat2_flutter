@@ -232,9 +232,23 @@ class AuthManager {
     try {
       final result = await login(credential, saveCredentials: false);
       
-      // 如果登入失敗且是帳密錯誤，清除本地憑證
-      if (!result.success && result.message?.contains('帳號或密碼') == true) {
-        await clearCredentials();
+      // 如果登入失敗
+      if (!result.success) {
+        final errorMsg = result.message ?? '';
+        
+        // 如果是帳密錯誤，清除本地憑證
+        if (errorMsg.contains('帳號或密碼')) {
+          await clearCredentials();
+        }
+        
+        // 如果是網路錯誤，保持離線模式，不清除憑證
+        if (errorMsg.contains('connection') ||
+            errorMsg.contains('host lookup') ||
+            errorMsg.contains('network') ||
+            errorMsg.contains('Socket')) {
+          debugPrint('[AuthManager] 網路連接失敗，保持離線模式');
+          _authState = AuthState.offline;
+        }
       }
       
       return result;

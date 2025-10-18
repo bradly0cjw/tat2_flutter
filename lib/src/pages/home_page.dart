@@ -18,10 +18,11 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   int _currentIndex = 0;
   bool _hasSyncedAnnouncements = false;
   bool _isInitialized = false;
+  bool _shouldRetryInitOnResume = false;
 
   @override
   void initState() {
@@ -29,15 +30,39 @@ class _HomePageState extends State<HomePage> {
     // 監聽 BadgeService 變化
     BadgeService().addListener(_onBadgeChanged);
     
+    // 監聽應用生命週期變化
+    WidgetsBinding.instance.addObserver(this);
+    
     // 延遲初始化，等待 context 可用
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initialize();
     });
   }
   
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    // 當應用從後台回到前台時，如果之前初始化失敗，重試
+    if (state == AppLifecycleState.resumed && _shouldRetryInitOnResume) {
+      debugPrint('[HomePage] 應用回到前台，重試初始化');
+      _shouldRetryInitOnResume = false;
+      _initialize();
+    }
+  }
+  
   /// 初始化頁面
   Future<void> _initialize() async {
     if (_isInitialized) return;
+    
+    // 檢查應用是否在前台
+    final lifecycleState = WidgetsBinding.instance.lifecycleState;
+    if (lifecycleState != null && lifecycleState != AppLifecycleState.resumed) {
+      debugPrint('[HomePage] 應用在後台，延遲初始化');
+      _shouldRetryInitOnResume = true;
+      return;
+    }
+    
     _isInitialized = true;
     
     debugPrint('[HomePage] 開始初始化');
@@ -74,7 +99,13 @@ class _HomePageState extends State<HomePage> {
       
       // 在後台嘗試自動登入（非阻塞）
       debugPrint('[HomePage] 開始後台自動登入...');
-      final success = await authProvider.tryAutoLogin();
+      final success = await authProvider.tryAutoLogin().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('[HomePage] 後台自動登入超時');
+          return false;
+        },
+      );
       
       if (success) {
         debugPrint('[HomePage] 後台自動登入成功');
@@ -86,7 +117,18 @@ class _HomePageState extends State<HomePage> {
         });
       } else {
         debugPrint('[HomePage] 後台自動登入失敗');
-        // 登入失敗，跳轉到登入頁面
+        
+        // 檢查是否為網路錯誤
+        if (authProvider.error?.contains('connection') == true ||
+            authProvider.error?.contains('host lookup') == true ||
+            authProvider.error?.contains('network') == true) {
+          debugPrint('[HomePage] 網路連接失敗，保留在主頁面（離線模式）');
+          _shouldRetryInitOnResume = true;
+          // 不跳轉到登入頁面，允許使用離線功能
+          return;
+        }
+        
+        // 其他錯誤（如帳密錯誤），跳轉到登入頁面
         if (mounted) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             Navigator.of(context).pushReplacementNamed('/login');
@@ -95,7 +137,20 @@ class _HomePageState extends State<HomePage> {
       }
     } catch (e) {
       debugPrint('[HomePage] 初始化異常: $e');
-      // 異常時跳轉到登入頁面
+      
+      // 檢查是否為網路相關錯誤
+      final errorStr = e.toString().toLowerCase();
+      if (errorStr.contains('connection') ||
+          errorStr.contains('network') ||
+          errorStr.contains('host') ||
+          errorStr.contains('socket')) {
+        debugPrint('[HomePage] 網路異常，保留在主頁面（離線模式）');
+        _shouldRetryInitOnResume = true;
+        // 不跳轉到登入頁面，允許使用離線功能
+        return;
+      }
+      
+      // 其他異常，跳轉到登入頁面
       if (mounted) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Navigator.of(context).pushReplacementNamed('/login');
@@ -107,6 +162,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     BadgeService().removeListener(_onBadgeChanged);
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 

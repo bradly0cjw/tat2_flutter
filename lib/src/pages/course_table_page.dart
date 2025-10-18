@@ -122,7 +122,7 @@ class _CourseTablePageState extends State<CourseTablePage> {
   }
   
   /// 載入可用的學年學期列表
-  Future<void> _loadAvailableSemesters() async {
+  Future<void> _loadAvailableSemesters({int retryCount = 0}) async {
     setState(() => _isLoading = true);
     
     // 獲取當前時間判斷當前學期
@@ -141,42 +141,93 @@ class _CourseTablePageState extends State<CourseTablePage> {
       final cachedSemesters = _cacheBox?.get(semestersCacheKey);
       final cachedTime = _cacheBox?.get(semestersCacheTimeKey);
       
-      // 檢查緩存是否有效(24小時內)
-      bool useCache = false;
-      if (cachedSemesters != null && cachedTime != null) {
-        final cacheDateTime = DateTime.parse(cachedTime);
-        final now = DateTime.now();
-        final difference = now.difference(cacheDateTime);
+      // 緩存永不過期（除非手動刷新）
+      bool hasCache = false;
+      
+      if (cachedSemesters != null) {
+        availableSemesters = (cachedSemesters as List)
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+        hasCache = true;
         
-        if (difference.inHours < 24) {
-          availableSemesters = (cachedSemesters as List)
-              .map((e) => Map<String, dynamic>.from(e as Map))
-              .toList();
-          useCache = true;
+        if (cachedTime != null) {
+          final cacheDateTime = DateTime.parse(cachedTime);
+          final difference = DateTime.now().difference(cacheDateTime);
+          debugPrint('[CourseTable] 使用緩存的學期列表（${availableSemesters.length} 個，${difference.inDays} 天前更新）');
+        } else {
           debugPrint('[CourseTable] 使用緩存的學期列表（${availableSemesters.length} 個）');
         }
       }
       
-      // 如果沒有有效緩存,從 API 獲取
-      if (!useCache) {
+      // 如果沒有緩存且未手動刷新，從 API 獲取
+      // 注意：retryCount > 0 表示這是手動刷新
+      if (!hasCache || retryCount > 0) {
         // 檢查是否已登入
         if (!authProvider.isLoggedIn) {
-          debugPrint('[CourseTable] 未登入，等待登入完成');
-          setState(() {
-            _waitingForLogin = true;
-            _isLoading = true;
-          });
-          return;
+          // 如果有緩存，先使用緩存顯示
+          if (hasCache && availableSemesters.isNotEmpty) {
+            debugPrint('[CourseTable] 未登入，使用緩存的學期列表');
+            // 繼續使用緩存，不中斷流程
+          } else {
+            debugPrint('[CourseTable] 未登入，等待登入完成');
+            setState(() {
+              _waitingForLogin = true;
+              _isLoading = true;
+            });
+            return;
+          }
+        } else {
+          debugPrint('[CourseTable] 從 API 獲取學期列表');
+          
+          try {
+            final fetchedSemesters = await apiService.getAvailableSemesters();
+            
+            if (fetchedSemesters.isNotEmpty) {
+              availableSemesters = fetchedSemesters;
+              
+              // 保存到緩存
+              if (_cacheBox != null) {
+                await _cacheBox!.put(semestersCacheKey, availableSemesters);
+                await _cacheBox!.put(semestersCacheTimeKey, DateTime.now().toIso8601String());
+                debugPrint('[CourseTable] 已更新學期列表緩存');
+              }
+            } else if (!hasCache) {
+              // 沒有獲取到數據且沒有緩存
+              debugPrint('[CourseTable] 無可用學期');
+              setState(() {
+                _isLoading = false;
+                _error = '無法獲取可用學期列表';
+              });
+              return;
+            }
+            // 如果有緩存但新請求沒有數據，繼續使用緩存
+          } catch (e) {
+            debugPrint('[CourseTable] API 獲取學期列表失敗: $e');
+            
+            // 如果有緩存，使用緩存並顯示提示
+            if (hasCache && availableSemesters.isNotEmpty) {
+              debugPrint('[CourseTable] 使用緩存的學期列表');
+              
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('更新失敗，使用緩存的學期列表'),
+                    action: SnackBarAction(
+                      label: '重試',
+                      onPressed: () => _loadAvailableSemesters(retryCount: 1),
+                    ),
+                  ),
+                );
+              }
+            } else {
+              // 沒有緩存，拋出異常觸發重試邏輯
+              rethrow;
+            }
+          }
         }
-        
-        debugPrint('[CourseTable] 從 API 獲取學期列表');
-        availableSemesters = await apiService.getAvailableSemesters();
-        
-        // 保存到緩存
-        if (availableSemesters.isNotEmpty && _cacheBox != null) {
-          await _cacheBox!.put(semestersCacheKey, availableSemesters);
-          await _cacheBox!.put(semestersCacheTimeKey, DateTime.now().toIso8601String());
-        }
+      } else {
+        // 有緩存且非手動刷新，直接使用緩存
+        debugPrint('[CourseTable] 直接使用緩存，跳過 API 請求');
       }
       
       if (availableSemesters.isEmpty) {
@@ -301,11 +352,25 @@ class _CourseTablePageState extends State<CourseTablePage> {
           _error = '';
         });
       } else {
-        // 其他錯誤顯示錯誤訊息
+        // 其他錯誤顯示錯誤訊息，並提供重試按鈕
         setState(() {
           _isLoading = false;
           _error = '載入學期列表失敗: $e';
         });
+        
+        // 顯示重試提示
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('載入失敗: $e'),
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: '重試',
+                onPressed: () => _loadAvailableSemesters(retryCount: 1),
+              ),
+            ),
+          );
+        }
       }
     }
   }
@@ -591,16 +656,45 @@ class _CourseTablePageState extends State<CourseTablePage> {
                 }).toList();
               },
             ),
-          // 重新取得課表
-          IconButton(
+          // 刷新菜單
+          PopupMenuButton<String>(
             icon: const Icon(Icons.refresh),
-            tooltip: '重新取得課表',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('重新取得課表中...')),
-              );
-              _loadCourseTable(forceRefresh: true);
+            tooltip: '刷新',
+            onSelected: (value) {
+              if (value == 'refresh_table') {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('重新取得課表中...')),
+                );
+                _loadCourseTable(forceRefresh: true);
+              } else if (value == 'refresh_semesters') {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('重新取得學期列表中...')),
+                );
+                _loadAvailableSemesters(retryCount: 1);
+              }
             },
+            itemBuilder: (context) => [
+              const PopupMenuItem<String>(
+                value: 'refresh_table',
+                child: Row(
+                  children: [
+                    Icon(Icons.table_chart),
+                    SizedBox(width: 8),
+                    Text('刷新課表'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'refresh_semesters',
+                child: Row(
+                  children: [
+                    Icon(Icons.calendar_month),
+                    SizedBox(width: 8),
+                    Text('刷新學期列表'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -629,11 +723,29 @@ class _CourseTablePageState extends State<CourseTablePage> {
           children: [
             const Icon(Icons.error_outline, size: 64, color: Colors.red),
             const SizedBox(height: 16),
-            Text('錯誤：$_error'),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadCourseTable,
-              child: const Text('重試'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                '錯誤：$_error',
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => _loadCourseTable(forceRefresh: true),
+                  icon: const Icon(Icons.table_chart),
+                  label: const Text('重試課表'),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  onPressed: () => _loadAvailableSemesters(retryCount: 1),
+                  icon: const Icon(Icons.calendar_month),
+                  label: const Text('重試學期'),
+                ),
+              ],
             ),
           ],
         ),
