@@ -22,6 +22,7 @@ class _NtutLearnPageState extends State<NtutLearnPage> {
   bool _isLoggedIn = false;
   bool _isInitialized = false;
   bool _isLoadingCourses = false;
+  bool _isSyncing = false; // 防止重複同步
   
   // 從課表取得的課程列表
   List<Map<String, dynamic>> _courses = [];
@@ -134,11 +135,6 @@ class _NtutLearnPageState extends State<NtutLearnPage> {
               backgroundColor: Colors.red,
             ),
           );
-        } else {
-          // 登入成功後，檢查是否需要同步公告
-          if (await BadgeService().canAutoCheckISchool()) {
-            _syncAllAnnouncements();
-          }
         }
       }
     } catch (e) {
@@ -208,70 +204,6 @@ class _NtutLearnPageState extends State<NtutLearnPage> {
         ],
       ),
     );
-  }
-
-  /// 同步所有課程公告（背景執行，使用並行處理）
-  Future<void> _syncAllAnnouncements() async {
-    if (_courses.isEmpty) return;
-    
-    try {
-      final service = ISchoolPlusService.instance;
-      
-      // 更新最後檢查時間
-      await BadgeService().updateISchoolCheckTime();
-      
-      // 過濾有效的課程 ID
-      final validCourses = _courses.where((course) {
-        final courseId = course['courseId'] as String? ?? '';
-        return courseId.isNotEmpty && !courseId.startsWith('NO_ID');
-      }).toList();
-      
-      // 記錄初始未讀數
-      final oldCount = await BadgeService().getUnreadCount(BadgeFeature.ischool);
-      
-      int successCount = 0;
-      
-      // 並行處理所有課程
-      final results = await Future.wait(
-        validCourses.map((course) async {
-          final courseId = course['courseId'] as String? ?? '';
-          
-          try {
-            final announcements = await service.connector.getCourseAnnouncements(courseId);
-            final announcementIds = announcements
-                .where((a) => a.nid != null && a.nid!.isNotEmpty)
-                .map((a) => a.nid!)
-                .toList();
-            
-            await BadgeService().syncCourseAnnouncements(courseId, announcementIds);
-            return true;
-          } catch (e) {
-            return false;
-          }
-        }),
-      );
-      
-      successCount = results.where((r) => r).length;
-      
-      // 計算新增的公告數量
-      final newCount = await BadgeService().getUnreadCount(BadgeFeature.ischool) - oldCount;
-      
-      // 同步完成後更新 UI
-      if (mounted) {
-        if (newCount > 0) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('同步完成：$successCount 門課程，$newCount 則新公告'),
-              backgroundColor: Colors.blue,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      // 靜默失敗
-    }
   }
 
   /// 清除所有資料
@@ -360,26 +292,19 @@ class _NtutLearnPageState extends State<NtutLearnPage> {
     }
   }
 
-  /// 復原所有紅點為未讀（測試用）
+  /// 恢復所有紅點（將所有公告標記為未讀）
   Future<void> _resetAllBadges() async {
     try {
       await BadgeService().resetAllISchoolBadges();
       
       if (mounted) {
         setState(() {}); // 重新整理以更新紅點顯示
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('已復原所有 i學院 紅點為未讀'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 2),
-          ),
-        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('復原紅點失敗：$e'),
+            content: Text('標記失敗：$e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -428,11 +353,11 @@ class _NtutLearnPageState extends State<NtutLearnPage> {
                 ),
                 const PopupMenuItem(
                   value: 'clear_badges',
-                  child: Text('清除所有紅點'),
+                  child: Text('標記全部已讀'),
                 ),
                 const PopupMenuItem(
                   value: 'reset_badges',
-                  child: Text('復原所有紅點 (測試)'),
+                  child: Text('標記全部未讀'),
                 ),
               ],
             ),

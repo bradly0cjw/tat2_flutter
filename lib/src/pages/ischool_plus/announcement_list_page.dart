@@ -72,24 +72,20 @@ class _AnnouncementListPageState extends State<AnnouncementListPage> {
         }
       }
 
-      // 取得公告列表
+      // 取得公告列表（手動操作，使用高優先級）
       final announcements = await service.connector
-          .getCourseAnnouncements(widget.courseId);
+          .getCourseAnnouncements(widget.courseId, highPriority: true);
 
-      // 同步公告（用戶主動查看，清除該課程的所有紅點）
+      // 同步公告列表（不自動清除紅點，只有用戶點擊查看時才標記為已讀）
       final announcementIds = announcements
           .where((a) => a.nid != null && a.nid!.isNotEmpty)
           .map((a) => a.nid!)
           .toList();
       
-      // 先同步公告列表
       await BadgeService().syncCourseAnnouncements(
         widget.courseId,
         announcementIds,
       );
-      
-      // 然後清除該課程所有紅點（用戶已查看）
-      await BadgeService().clearCourseAnnouncements(widget.courseId);
 
       setState(() {
         _announcements = announcements;

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:developer' as dev;
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:html/parser.dart' as html_parser;
@@ -14,6 +15,10 @@ class ISchoolPlusConnector {
   static const String _ssoLoginUrl = 'https://app.ntut.edu.tw/ssoIndex.do';
   
   final Dio _dio;
+  
+  // 用於防止並發請求導致課程選擇混亂的互斥鎖
+  Completer<void>? _currentLock; // 當前正在執行的鎖
+  final List<Completer<void>> _waitingQueue = []; // 等待隊列
 
   ISchoolPlusConnector({required Dio dio}) : _dio = dio {
     // 不覆蓋傳入的 Dio 配置，保持共享的設置
@@ -184,11 +189,10 @@ class ISchoolPlusConnector {
       );
       
       if (gotoResponse.statusCode != 200) {
-        print('[ISchoolPlus] 課程 $courseId: 選擇課程失敗 (status: ${gotoResponse.statusCode})');
+        print('[ISchoolPlus] 選擇課程失敗: $courseId');
         return false;
       }
       
-      print('[ISchoolPlus] 課程 $courseId: 選擇成功');
       return true;
     } catch (e) {
       print('[ISchoolPlus] 課程 $courseId: 選擇課程異常 - $e');
@@ -196,9 +200,48 @@ class ISchoolPlusConnector {
     }
   }
 
+  /// 獲取鎖（支持優先級）
+  Future<void> _acquireLock({bool highPriority = false}) async {
+    // 如果有當前正在執行的鎖，先等它完成
+    if (_currentLock != null) {
+      final completer = Completer<void>();
+      
+      if (highPriority) {
+        // 高優先級（手動操作）插入到等待隊列前面
+        _waitingQueue.insert(0, completer);
+      } else {
+        // 低優先級（背景同步）加到等待隊列末尾
+        _waitingQueue.add(completer);
+      }
+      
+      // 等待輪到自己
+      await completer.future;
+    }
+    
+    // 創建自己的鎖
+    _currentLock = Completer<void>();
+  }
+  
+  /// 釋放鎖
+  void _releaseLock() {
+    // 完成當前鎖
+    _currentLock?.complete();
+    _currentLock = null;
+    
+    // 處理等待隊列中的下一個請求
+    if (_waitingQueue.isNotEmpty) {
+      final next = _waitingQueue.removeAt(0);
+      next.complete();
+    }
+  }
+
   /// 取得課程公告列表
+  /// [highPriority] 是否為高優先級請求（手動操作）
   Future<List<ISchoolPlusAnnouncement>> getCourseAnnouncements(
-      String courseId) async {
+      String courseId, {bool highPriority = false}) async {
+    // 獲取鎖，高優先級請求會插隊
+    await _acquireLock(highPriority: highPriority);
+    
     try {
       // 先選擇課程
       if (!await _selectCourse(courseId)) {
@@ -278,7 +321,6 @@ class ISchoolPlusConnector {
       }
       
       final dataMap = data as Map<String, dynamic>;
-      print('[ISchoolPlus] 課程 $courseId 有 ${dataMap.length} 個公告');
 
       for (final entry in dataMap.entries) {
         try {
@@ -300,6 +342,9 @@ class ISchoolPlusConnector {
     } catch (e) {
       // 重新拋出異常讓上層處理
       rethrow;
+    } finally {
+      // 釋放鎖
+      _releaseLock();
     }
   }
 
@@ -363,32 +408,27 @@ class ISchoolPlusConnector {
   }
 
   /// 取得課程檔案列表
-  Future<List<ISchoolPlusCourseFile>> getCourseFiles(String courseId) async {
+  /// [highPriority] 是否為高優先級請求（手動操作）
+  Future<List<ISchoolPlusCourseFile>> getCourseFiles(String courseId, {bool highPriority = false}) async {
+    // 獲取鎖，高優先級請求會插隊
+    await _acquireLock(highPriority: highPriority);
+    
     try {
-      print('[ISchoolPlus] Getting files for course: $courseId');
-      
       // 先選擇課程
       if (!await _selectCourse(courseId)) {
-        print('[ISchoolPlus] Failed to select course: $courseId');
         return [];
       }
-      
-      print('[ISchoolPlus] Course selected');
 
       // Step 1: 取得 cid
       final launchResponse = await _dio.get('${_baseUrl}learn/path/launch.php');
-      print('[ISchoolPlus] Launch response status: ${launchResponse.statusCode}');
-      
       final launchHtml = launchResponse.data.toString();
       
       final cidRegex = RegExp(r'cid=([\w|-]+,)');
       final cidMatch = cidRegex.firstMatch(launchHtml);
       if (cidMatch == null) {
-        print('[ISchoolPlus] CID not found in launch response');
         return [];
       }
       final cid = cidMatch.group(1);
-      print('[ISchoolPlus] Found cid: $cid');
 
       // Step 2: 取得 path tree
       final pathTreeResponse = await _dio.get(
@@ -476,6 +516,9 @@ class ISchoolPlusConnector {
       dev.log('[ISchoolPlus] Get course files error: $e',
           stackTrace: stackTrace);
       return [];
+    } finally {
+      // 釋放鎖
+      _releaseLock();
     }
   }
 

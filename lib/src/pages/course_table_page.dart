@@ -40,11 +40,44 @@ class _CourseTablePageState extends State<CourseTablePage> {
   Box? _cacheBox;
   DateTime? _lastCacheTime;
   
+  // 追蹤是否正在等待登入
+  bool _waitingForLogin = false;
+  
   @override
   void initState() {
     super.initState();
     debugPrint('[CourseTable] 初始化開始');
     _initServices();
+    
+    // 監聽登入狀態變化
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = context.read<AuthProviderV2>();
+      authProvider.addListener(_onAuthStateChanged);
+    });
+  }
+  
+  @override
+  void dispose() {
+    // 移除監聽器
+    try {
+      final authProvider = context.read<AuthProviderV2>();
+      authProvider.removeListener(_onAuthStateChanged);
+    } catch (e) {
+      // Context 可能已經不可用
+    }
+    super.dispose();
+  }
+  
+  /// 監聽登入狀態變化
+  void _onAuthStateChanged() {
+    final authProvider = context.read<AuthProviderV2>();
+    
+    // 如果正在等待登入，且現在已登入成功，則自動重新載入
+    if (_waitingForLogin && authProvider.isLoggedIn && !authProvider.isLoading) {
+      debugPrint('[CourseTable] 檢測到登入完成，重新載入學期列表');
+      _waitingForLogin = false;
+      _loadAvailableSemesters();
+    }
   }
   
   /// 初始化服務
@@ -57,17 +90,28 @@ class _CourseTablePageState extends State<CourseTablePage> {
     try {
       _cacheBox = await Hive.openBox(_cacheBoxName);
       debugPrint('[CourseTable] 緩存已初始化');
-      await _loadAvailableSemesters();
+      
+      // 檢查登入狀態
+      final authProvider = context.read<AuthProviderV2>();
+      if (authProvider.isLoggedIn) {
+        // 已登入，立即載入
+        await _loadAvailableSemesters();
+      } else if (authProvider.isLoading) {
+        // 正在登入中，等待登入完成
+        debugPrint('[CourseTable] 正在登入中，等待登入完成...');
+        setState(() {
+          _waitingForLogin = true;
+          _isLoading = true;
+        });
+      } else {
+        // 未登入也未在登入中，嘗試從緩存載入或顯示空白
+        debugPrint('[CourseTable] 未登入，嘗試從緩存載入');
+        await _loadAvailableSemesters();
+      }
     } catch (e) {
       debugPrint('[CourseTable] 初始化緩存失敗: $e');
       await _loadAvailableSemesters();
     }
-  }
-  
-  @override
-  void dispose() {
-    // 不需要關閉 box，Hive 會自動管理
-    super.dispose();
   }
   
   /// 更新桌面小工具截圖
@@ -87,6 +131,7 @@ class _CourseTablePageState extends State<CourseTablePage> {
     int currentSemester = (now.month >= 2 && now.month <= 7) ? 2 : 1;
     
     final apiService = context.read<NtutApiService>();
+    final authProvider = context.read<AuthProviderV2>();
     
     try {
       // 先嘗試從緩存讀取學期列表
@@ -108,11 +153,22 @@ class _CourseTablePageState extends State<CourseTablePage> {
               .map((e) => Map<String, dynamic>.from(e as Map))
               .toList();
           useCache = true;
+          debugPrint('[CourseTable] 使用緩存的學期列表（${availableSemesters.length} 個）');
         }
       }
       
       // 如果沒有有效緩存,從 API 獲取
       if (!useCache) {
+        // 檢查是否已登入
+        if (!authProvider.isLoggedIn) {
+          debugPrint('[CourseTable] 未登入，等待登入完成');
+          setState(() {
+            _waitingForLogin = true;
+            _isLoading = true;
+          });
+          return;
+        }
+        
         debugPrint('[CourseTable] 從 API 獲取學期列表');
         availableSemesters = await apiService.getAvailableSemesters();
         
@@ -235,10 +291,22 @@ class _CourseTablePageState extends State<CourseTablePage> {
       
     } catch (e) {
       debugPrint('[CourseTable] 載入學期失敗: $e');
-      setState(() {
-        _isLoading = false;
-        _error = '載入學期列表失敗: $e';
-      });
+      
+      // 如果是未登入的錯誤，等待登入完成
+      if (e.toString().contains('請先登入') || e.toString().contains('401')) {
+        debugPrint('[CourseTable] 檢測到未登入錯誤，等待登入完成');
+        setState(() {
+          _waitingForLogin = true;
+          _isLoading = true;
+          _error = '';
+        });
+      } else {
+        // 其他錯誤顯示錯誤訊息
+        setState(() {
+          _isLoading = false;
+          _error = '載入學期列表失敗: $e';
+        });
+      }
     }
   }
   

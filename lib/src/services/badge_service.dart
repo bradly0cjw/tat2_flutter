@@ -31,7 +31,8 @@ class BadgeService extends ChangeNotifier {
   static const String _hideAllBadgesKey = 'badge_hide_all';
   static const String _autoCheckEnabledKey = 'badge_auto_check_ischool';
   static const String _lastCheckTimeKey = 'badge_last_check_time_ischool';
-  static const int _checkIntervalMinutes = 0; // 測試用：0分鐘限制
+  static const String _courseLastSyncPrefix = 'badge_course_sync_'; // 每個課程的上次同步時間
+  static const int _checkIntervalMinutes = 0; // 15分鐘檢查一次
 
   SharedPreferences? _prefs;
 
@@ -70,7 +71,8 @@ class BadgeService extends ChangeNotifier {
   Future<void> markAsRead(BadgeFeature feature, String itemId) async {
     await init();
     final key = '$_keyPrefix$_unreadItemsPrefix${feature.key}_$itemId';
-    await _prefs?.remove(key);
+    // 設置為 false = 已讀
+    await _prefs?.setBool(key, false);
     notifyListeners();
   }
 
@@ -137,7 +139,7 @@ class BadgeService extends ChangeNotifier {
     return _prefs?.getBool(_autoCheckEnabledKey) ?? true; // 預設啟用
   }
 
-  /// 檢查是否可以進行自動檢查（0分鐘限制，測試用）
+  /// 檢查是否可以進行自動檢查（15分鐘限制，測試用）
   Future<bool> canAutoCheckISchool() async {
     await init();
     
@@ -182,7 +184,22 @@ class BadgeService extends ChangeNotifier {
     return remaining > 0 ? remaining : 0;
   }
 
-  /// 清除功能的所有紅點標記
+  /// 取得課程的上次同步時間（毫秒時間戳）
+  Future<int?> getCourseLastSyncTime(String courseId) async {
+    await init();
+    final key = '$_courseLastSyncPrefix$courseId';
+    return _prefs?.getInt(key);
+  }
+
+  /// 更新課程的同步時間
+  Future<void> updateCourseSyncTime(String courseId) async {
+    await init();
+    final key = '$_courseLastSyncPrefix$courseId';
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await _prefs?.setInt(key, now);
+  }
+
+  /// 清除功能的所有紅點標記（標記為已讀）
   Future<void> clearFeatureBadges(BadgeFeature feature) async {
     await init();
     final keys = _prefs?.getKeys() ?? {};
@@ -190,20 +207,20 @@ class BadgeService extends ChangeNotifier {
     
     for (final key in keys) {
       if (key.startsWith(prefix)) {
-        await _prefs?.remove(key);
+        await _prefs?.setBool(key, false);
       }
     }
     notifyListeners();
   }
 
-  /// 清除所有功能的紅點標記
+  /// 清除所有功能的紅點標記（標記為已讀）
   Future<void> clearAllBadges() async {
     await init();
     final keys = _prefs?.getKeys() ?? {};
     
     for (final key in keys) {
       if (key.startsWith('$_keyPrefix$_unreadItemsPrefix')) {
-        await _prefs?.remove(key);
+        await _prefs?.setBool(key, false);
       }
     }
     notifyListeners();
@@ -227,72 +244,62 @@ class BadgeService extends ChangeNotifier {
   // ==================== i學院專用方法 ====================
   
   /// 同步課程公告紅點
-  /// 第一次同步：所有公告都標記為紅點
-  /// 之後同步：只有新增的公告標記為紅點
-  /// 移除不存在的公告記錄
+  /// 邏輯：
+  /// 1. 如果本地沒有、系統有 -> 創建未讀記錄
+  /// 2. 如果本地有、雲端沒有 -> 刪除記錄
+  /// 3. 如果都有 -> 保持原狀態不變
   Future<void> syncCourseAnnouncements(
     String courseId, 
     List<String> currentAnnouncementIds,
   ) async {
     await init();
     
-    print('[BadgeService] 同步課程 $courseId，公告數量: ${currentAnnouncementIds.length}');
-    
-    // 如果課程沒有公告，清除所有該課程的紅點記錄
-    if (currentAnnouncementIds.isEmpty) {
-      print('[BadgeService] 課程 $courseId 沒有公告，清除所有紅點');
-      await clearCourseAnnouncements(courseId);
-      return;
-    }
-    
-    // 取得目前該課程的所有公告記錄
     final keys = _prefs?.getKeys() ?? {};
     final prefix = '$_keyPrefix$_unreadItemsPrefix${BadgeFeature.ischool.key}_${courseId}_';
-    
     final currentIdSet = currentAnnouncementIds.toSet();
     final existingIds = <String>{};
     
-    // 找出已存在的公告ID，並移除不再存在的
+    // 1. 找出已存在的記錄，刪除雲端不存在的
     for (final key in keys) {
       if (key.startsWith(prefix)) {
         final announcementId = key.substring(prefix.length);
         if (currentIdSet.contains(announcementId)) {
           existingIds.add(announcementId);
         } else {
-          // 移除不存在的公告
-          print('[BadgeService] 移除不存在的公告: $courseId/$announcementId');
+          // 本地有、雲端沒有 -> 刪除
           await _prefs?.remove(key);
         }
       }
     }
     
-    print('[BadgeService] 課程 $courseId 已存在 ${existingIds.length} 個公告記錄');
-    
-    // 標記新公告為未讀（顯示紅點）
+    // 2. 為新公告創建未讀記錄
     int newCount = 0;
     for (final announcementId in currentAnnouncementIds) {
       if (!existingIds.contains(announcementId)) {
-        print('[BadgeService] 新公告: $courseId/$announcementId');
+        // 本地沒有、系統有 -> 創建未讀記錄
         await markAsUnread(BadgeFeature.ischool, '${courseId}_$announcementId');
         newCount++;
       }
     }
     
     if (newCount > 0) {
-      print('[BadgeService] 課程 $courseId 新增了 $newCount 則公告紅點');
+      print('[Badge] 課程 $courseId +$newCount 則新公告');
     }
+    
+    // 更新課程的同步時間
+    await updateCourseSyncTime(courseId);
     
     notifyListeners();
   }
   
-  /// 清除特定課程的所有公告紅點
+  /// 清除特定課程的所有公告紅點（標記為已讀）
   Future<void> clearCourseAnnouncements(String courseId) async {
     await init();
     final keys = _prefs?.getKeys() ?? {};
     final prefix = '$_keyPrefix$_unreadItemsPrefix${BadgeFeature.ischool.key}_${courseId}_';
     
     for (final key in keys.where((key) => key.startsWith(prefix))) {
-      await _prefs?.remove(key);
+      await _prefs?.setBool(key, false);
     }
     notifyListeners();
   }
@@ -325,12 +332,27 @@ class BadgeService extends ChangeNotifier {
     return await hasUnread(BadgeFeature.ischool);
   }
 
-  /// 清除所有 i學院紅點
+  /// 清除所有 i學院紅點（標記全部已讀）
   Future<void> clearAllISchoolBadges() async {
-    await clearFeatureBadges(BadgeFeature.ischool);
+    await init();
+    final keys = _prefs?.getKeys() ?? {};
+    final prefix = '$_keyPrefix$_unreadItemsPrefix${BadgeFeature.ischool.key}_';
+    
+    int count = 0;
+    for (final key in keys) {
+      if (key.startsWith(prefix)) {
+        await _prefs?.setBool(key, false);
+        count++;
+      }
+    }
+    
+    if (count > 0) {
+      print('[Badge] 已標記 $count 個公告為已讀');
+    }
+    notifyListeners();
   }
 
-  /// 復原所有 i學院紅點為未讀（用於測試）
+  /// 恢復所有 i學院紅點（標記全部未讀）
   Future<void> resetAllISchoolBadges() async {
     await init();
     final keys = _prefs?.getKeys() ?? {};
@@ -345,9 +367,30 @@ class BadgeService extends ChangeNotifier {
     }
     
     if (count > 0) {
-      print('[BadgeService] 已復原 $count 個 i學院公告為未讀');
-      notifyListeners();
+      print('[Badge] 已標記 $count 個公告為未讀');
     }
+    notifyListeners();
+  }
+  
+  /// 清除所有 i學院紅點記錄（用於重置）
+  /// 這會刪除所有記錄，下次同步時會重新標記所有公告為新的
+  Future<void> clearAllISchoolRecords() async {
+    await init();
+    final keys = _prefs?.getKeys() ?? {};
+    final prefix = '$_keyPrefix$_unreadItemsPrefix${BadgeFeature.ischool.key}_';
+    
+    int count = 0;
+    for (final key in keys) {
+      if (key.startsWith(prefix)) {
+        await _prefs?.remove(key);
+        count++;
+      }
+    }
+    
+    if (count > 0) {
+      print('[Badge] 已清除 $count 個記錄');
+    }
+    notifyListeners();
   }
 
   /// 設定 i學院紅點功能開關

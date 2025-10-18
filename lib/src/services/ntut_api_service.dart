@@ -328,15 +328,20 @@ class NtutApiService {
       throw Exception('請先登入');
     }
 
+    // 確保已轉移到課程系統
     if (_courseJSessionId == null) {
+      print('[NTUT API] 尚未轉移到課程系統，開始轉移');
       final success = await _transferToCourseSystem();
       if (!success) {
         throw Exception('SSO 轉移到課程系統失敗');
       }
+      print('[NTUT API] SSO 轉移成功，_courseJSessionId: $_courseJSessionId');
+    } else {
+      print('[NTUT API] 已有課程系統 JSESSIONID: $_courseJSessionId');
     }
 
     try {
-      print('[NTUT API] 獲取可用學年度列表');
+      print('[NTUT API] 獲取可用學年度列表，userIdentifier: $_userIdentifier');
 
       // 使用與 SSO 相同的 CookieManager 來自動管理 cookies
       final courseDio = Dio(BaseOptions(
@@ -362,20 +367,33 @@ class NtutApiService {
         },
       );
 
+      print('[NTUT API] getAvailableSemesters 回應狀態: ${response.statusCode}');
+
       if (response.statusCode == 200) {
         final htmlContent = response.data.toString();
+        print('[NTUT API] HTML 內容長度: ${htmlContent.length}');
+        
+        // 檢查是否需要重新登入（如果回傳登入頁面）
+        if (htmlContent.contains('帳號') && htmlContent.contains('密碼')) {
+          print('[NTUT API] 檢測到登入頁面，Session 可能已失效');
+          throw Exception('Session 已失效，請重新登入');
+        }
         
         try {
           final document = html_parser.parse(htmlContent);
           final List<Map<String, dynamic>> semesters = [];
           
           final tables = document.getElementsByTagName('table');
+          print('[NTUT API] 找到 ${tables.length} 個 table 元素');
+          
           if (tables.isEmpty) {
+            print('[NTUT API] 警告：HTML 中沒有找到 table 元素');
             return [];
           }
           
           final table = tables[0];
           final rows = table.getElementsByTagName('tr');
+          print('[NTUT API] 找到 ${rows.length} 行');
           
           for (int i = 1; i < rows.length; i++) {
             final row = rows[i];
@@ -384,6 +402,8 @@ class NtutApiService {
             if (links.isEmpty) continue;
             
             final linkText = links[0].text.trim();
+            print('[NTUT API] 解析學期資訊: $linkText');
+            
             final parts = linkText.split(' ');
             if (parts.length >= 4) {
               try {
@@ -394,6 +414,7 @@ class NtutApiService {
                   'year': year,
                   'semester': semester,
                 });
+                print('[NTUT API] 成功解析學期: $year-$semester');
               } catch (e) {
                 debugPrint('[NTUT API] 解析學期失敗: $linkText, 錯誤: $e');
               }
@@ -412,6 +433,8 @@ class NtutApiService {
           print('[NTUT API] 解析 HTML 失敗: $e');
           return [];
         }
+      } else {
+        print('[NTUT API] HTTP 狀態碼異常: ${response.statusCode}');
       }
       
       return [];
@@ -470,15 +493,20 @@ class NtutApiService {
       throw Exception('請先登入');
     }
 
+    // 確保已轉移到課程系統
     if (_courseJSessionId == null) {
+      print('[NTUT API] 獲取課表前需要轉移到課程系統');
       final success = await _transferToCourseSystem();
       if (!success) {
         throw Exception('SSO 轉移到課程系統失敗');
       }
+      print('[NTUT API] SSO 轉移成功，_courseJSessionId: $_courseJSessionId');
+    } else {
+      print('[NTUT API] 已有課程系統 JSESSIONID: $_courseJSessionId');
     }
 
     try {
-      print('[NTUT API] 獲取課表: $year-$semester');
+      print('[NTUT API] 獲取課表: $year-$semester, userIdentifier: $_userIdentifier');
 
       // 使用與 SSO 相同的 CookieManager 來自動管理 cookies
       final courseDio = Dio(BaseOptions(
@@ -505,16 +533,29 @@ class NtutApiService {
         },
       );
 
+      print('[NTUT API] getCourseTable 回應狀態: ${response.statusCode}');
+
       if (response.statusCode == 200) {
         final htmlContent = response.data.toString();
+        print('[NTUT API] 課表 HTML 內容長度: ${htmlContent.length}');
+        
+        // 檢查是否需要重新登入
+        if (htmlContent.contains('帳號') && htmlContent.contains('密碼')) {
+          print('[NTUT API] 檢測到登入頁面，Session 可能已失效');
+          throw Exception('Session 已失效，請重新登入');
+        }
         
         if (htmlContent.contains('姓名')) {
-          print('[NTUT API] 成功獲取課表 HTML');
-          return _parseCourseTableHtml(htmlContent);
+          print('[NTUT API] 成功獲取課表 HTML，開始解析');
+          final courses = _parseCourseTableHtml(htmlContent);
+          print('[NTUT API] 成功解析 ${courses.length} 門課程');
+          return courses;
         } else {
-          print('[NTUT API] HTML 不包含課表數據');
+          print('[NTUT API] 警告：HTML 不包含課表數據（缺少"姓名"關鍵字）');
           return [];
         }
+      } else {
+        print('[NTUT API] HTTP 狀態碼異常: ${response.statusCode}');
       }
       return [];
     } catch (e) {

@@ -86,8 +86,8 @@ class _CourseFilesPageState extends State<CourseFilesPage> {
         }
       }
 
-      // 取得檔案列表
-      final files = await service.connector.getCourseFiles(widget.courseId);
+      // 取得檔案列表（手動操作，使用高優先級）
+      final files = await service.connector.getCourseFiles(widget.courseId, highPriority: true);
 
       setState(() {
         _files = files;

@@ -165,40 +165,56 @@ class _HomePageState extends State<HomePage> {
         return courseId.isNotEmpty && !courseId.startsWith('NO_ID');
       }).toList();
 
-      // 並行處理所有課程的公告同步
+      // 根據本地記錄的上次同步時間排序（最久沒更新的優先）
+      final courseWithSyncTime = <Map<String, dynamic>>[];
+      
+      for (final course in validCourses) {
+        final courseId = course['courseId'] as String? ?? '';
+        final lastSyncTime = await BadgeService().getCourseLastSyncTime(courseId);
+        
+        courseWithSyncTime.add({
+          'course': course,
+          'courseId': courseId,
+          'lastSyncTime': lastSyncTime ?? 0, // 從未同步過的課程優先
+        });
+      }
+      
+      // 按照上次同步時間排序（最久沒更新的在前面）
+      courseWithSyncTime.sort((a, b) {
+        final timeA = a['lastSyncTime'] as int;
+        final timeB = b['lastSyncTime'] as int;
+        return timeA.compareTo(timeB); // 升序排列（時間戳小的在前，即最久沒更新的優先）
+      });
+
+      // 按照排序後的順序同步
       int successCount = 0;
       int newCount = 0;
       
-      final results = await Future.wait(
-        validCourses.map((course) async {
-          final courseId = course['courseId'] as String? ?? '';
-          try {
-            final announcements = await service.connector.getCourseAnnouncements(courseId);
-            final announcementIds = announcements
-                .where((a) => a.nid != null && a.nid!.isNotEmpty)
-                .map((a) => a.nid!)
-                .toList();
-            
-            final oldCount = await BadgeService().getUnreadCount(BadgeFeature.ischool);
-            await BadgeService().syncCourseAnnouncements(courseId, announcementIds);
-            final addedCount = await BadgeService().getUnreadCount(BadgeFeature.ischool) - oldCount;
-            
-            return {'success': true, 'new': addedCount};
-          } catch (e) {
-            return {'success': false, 'new': 0};
+      for (final item in courseWithSyncTime) {
+        final courseId = item['courseId'] as String;
+        
+        try {
+          final announcements = await service.connector.getCourseAnnouncements(courseId);
+          final announcementIds = announcements
+              .where((a) => a.nid != null && a.nid!.isNotEmpty)
+              .map((a) => a.nid!)
+              .toList();
+          
+          final oldCount = await BadgeService().getUnreadCount(BadgeFeature.ischool);
+          await BadgeService().syncCourseAnnouncements(courseId, announcementIds);
+          final addedCount = await BadgeService().getUnreadCount(BadgeFeature.ischool) - oldCount;
+          
+          if (addedCount > 0) {
+            newCount += addedCount;
           }
-        }),
-      );
-
-      for (final result in results) {
-        if (result['success'] == true) {
           successCount++;
-          newCount += result['new'] as int;
+        } catch (e) {
+          // 靜默跳過錯誤
         }
       }
 
       if (newCount > 0) {
-        print('[HomePage] i學院同步完成：$successCount 門課程，$newCount 則新公告');
+        print('[HomePage] i學院同步完成：$successCount/$newCount');
       }
     } catch (e) {
       // 靜默失敗
