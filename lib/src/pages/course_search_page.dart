@@ -18,6 +18,7 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
   List<Map<String, dynamic>> _allCourses = [];
   List<Map<String, dynamic>> _filteredCourses = [];
   bool _isLoading = false;
+  bool _hasSearched = false; // 追蹤是否已執行過搜尋
   
   // 分頁
   int _currentPage = 1;
@@ -139,6 +140,7 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
           _filteredCourses = courses;
           _currentPage = 1; // 重置到第一頁
           _isLoading = false;
+          _hasSearched = true; // 標記已執行搜尋
         });
       }
       
@@ -407,6 +409,7 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
             _allCourses = courses;
             _filteredCourses = courses;
             _isLoading = false;
+            _hasSearched = true; // 標記已執行搜尋
           });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('已載入 $title 的課程 (${courses.length} 筆)')),
@@ -544,6 +547,7 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
       _allCourses.clear();
       _filteredCourses.clear();
       _currentPage = 1;
+      _hasSearched = false; // 重置搜尋狀態
     });
   }
 
@@ -912,12 +916,8 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
       ];
     }
 
-    if (_filteredCourses.isEmpty) {
-      final hasSearchCriteria = _searchController.text.isNotEmpty || 
-          _selectedCategories.isNotEmpty || 
-          _selectedCollege != null ||
-          _selectedTimes.values.any((t) => t.isNotEmpty);
-      
+    // 如果還沒搜尋過,顯示初始提示
+    if (!_hasSearched) {
       return [
         SliverFillRemaining(
           hasScrollBody: false,
@@ -928,22 +928,59 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    hasSearchCriteria ? Icons.search_off : Icons.manage_search,
+                    Icons.manage_search,
                     size: 80,
                     color: Theme.of(context).colorScheme.outlineVariant,
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    hasSearchCriteria ? '沒有找到符合的課程' : '開始搜尋課程',
+                    '開始搜尋課程',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    hasSearchCriteria 
-                        ? '試試調整搜尋條件或篩選器'
-                        : '輸入關鍵字或點擊右下角按鈕\n設定篩選條件或選擇班級',
+                    '輸入關鍵字或點擊右下角按鈕\n設定篩選條件或選擇班級',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ];
+    }
+
+    // 已搜尋但無結果
+    if (_filteredCourses.isEmpty) {
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.search_off,
+                    size: 80,
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    '沒有找到符合的課程',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '試試調整搜尋條件或篩選器',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
@@ -1136,10 +1173,6 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

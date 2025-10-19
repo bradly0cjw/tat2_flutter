@@ -340,124 +340,129 @@ class _EmptyClassroomPageState extends State<EmptyClassroomPage>
     final hasActiveFilters = _selectedBuilding != null || _selectedFloor != null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.emptyClassroom),
-        actions: [
-          if (hasActiveFilters)
-            IconButton(
-              icon: const Icon(Icons.filter_list_off),
-              tooltip: '清除篩選',
-              onPressed: () {
-                setState(() {
-                  _selectedBuilding = null;
-                  _selectedFloor = null;
-                });
-              },
-            ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: '重新整理',
-            onPressed: () => _loadEmptyClassrooms(forceRefresh: true),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // 篩選區域 - 統一風格
-          Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: colorScheme.surface,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            // AppBar
+            SliverAppBar(
+              floating: true,
+              pinned: false,
+              snap: true,
+              title: Text(l10n.emptyClassroom),
+              actions: [
+                if (hasActiveFilters)
+                  IconButton(
+                    icon: const Icon(Icons.filter_list_off),
+                    tooltip: '清除篩選',
+                    onPressed: () {
+                      setState(() {
+                        _selectedBuilding = null;
+                        _selectedFloor = null;
+                      });
+                    },
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: '重新整理',
+                  onPressed: () => _loadEmptyClassrooms(forceRefresh: true),
                 ),
               ],
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Column(
-              children: [
-                // 星期選擇器
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: _dayNames.entries.map((entry) {
-                      final isSelected = _selectedDay == entry.key;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: FilterChip(
-                          label: Text(entry.value),
-                          selected: isSelected,
-                          showCheckmark: false,
-                          onSelected: (selected) {
-                            if (selected) {
-                              setState(() => _selectedDay = entry.key);
-                              _loadEmptyClassrooms();
-                            }
-                          },
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // 大樓和樓層篩選
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilterChip(
-                        label: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.business, size: 16),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                _selectedBuilding ?? '全部大樓',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        selected: _selectedBuilding != null,
-                        showCheckmark: false,
-                        onSelected: (_) => _showBuildingFilterDialog(),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilterChip(
-                        label: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.layers, size: 16),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                _selectedFloor != null ? '$_selectedFloor樓' : '全部樓層',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        selected: _selectedFloor != null,
-                        showCheckmark: false,
-                        onSelected: (_) => _showFloorFilterDialog(),
-                      ),
+            
+            // 篩選區域 - 固定在 AppBar 下方，有陰影和層次感
+            SliverToBoxAdapter(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
-              ],
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Column(
+                  children: [
+                    // 星期選擇器 - SegmentedButton (M3 風格) - 置中
+                    Center(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SegmentedButton<String>(
+                          segments: _dayNames.entries.map((entry) {
+                            return ButtonSegment<String>(
+                              value: entry.key,
+                              label: Text(entry.value),
+                            );
+                          }).toList(),
+                          selected: {_selectedDay},
+                          onSelectionChanged: (Set<String> selected) {
+                            if (selected.isNotEmpty) {
+                              setState(() => _selectedDay = selected.first);
+                              _loadEmptyClassrooms();
+                            }
+                          },
+                          showSelectedIcon: false,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // 大樓和樓層篩選
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilterChip(
+                            label: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.business, size: 16),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    _selectedBuilding ?? '全部大樓',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            selected: _selectedBuilding != null,
+                            showCheckmark: false,
+                            onSelected: (_) => _showBuildingFilterDialog(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilterChip(
+                            label: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.layers, size: 16),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    _selectedFloor != null ? '$_selectedFloor樓' : '全部樓層',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            selected: _selectedFloor != null,
+                            showCheckmark: false,
+                            onSelected: (_) => _showFloorFilterDialog(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-
-          // 教室列表
-          Expanded(
-            child: _buildClassroomList(theme),
-          ),
-        ],
+          ];
+        },
+        body: CustomScrollView(
+          slivers: _buildClassroomListSlivers(theme),
+        ),
       ),
     );
   }
@@ -486,128 +491,143 @@ class _EmptyClassroomPageState extends State<EmptyClassroomPage>
     );
   }
 
-  Widget _buildClassroomList(ThemeData theme) {
+  List<Widget> _buildClassroomListSlivers(ThemeData theme) {
     final colorScheme = theme.colorScheme;
     
     if (_isLoading) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(color: colorScheme.primary),
-            const SizedBox(height: 16),
-            Text(
-              '載入中...',
-              style: TextStyle(
-                color: colorScheme.onSurfaceVariant,
-                fontSize: 14,
-              ),
+      return [
+        SliverFillRemaining(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: colorScheme.primary),
+                const SizedBox(height: 16),
+                Text(
+                  '載入中...',
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      );
+      ];
     }
 
     if (_errorMessage != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline_rounded,
-              size: 64,
-              color: colorScheme.error,
+      return [
+        SliverFillRemaining(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline_rounded,
+                  size: 64,
+                  color: colorScheme.error,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _errorMessage!,
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                    fontSize: 16,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  onPressed: () => _loadEmptyClassrooms(forceRefresh: true),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('重試'),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              _errorMessage!,
-              style: TextStyle(
-                color: colorScheme.onSurfaceVariant,
-                fontSize: 16,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: () => _loadEmptyClassrooms(forceRefresh: true),
-              icon: const Icon(Icons.refresh),
-              label: const Text('重試'),
-            ),
-          ],
+          ),
         ),
-      );
+      ];
     }
 
     if (_classrooms.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.meeting_room_outlined,
-              size: 64,
-              color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+      return [
+        SliverFillRemaining(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.meeting_room_outlined,
+                  size: 64,
+                  color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '目前沒有空教室資料',
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '可以切換其他星期查看',
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              '目前沒有空教室資料',
-              style: TextStyle(
-                color: colorScheme.onSurfaceVariant,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '可以切換其他星期查看',
-              style: TextStyle(
-                color: colorScheme.onSurfaceVariant.withOpacity(0.7),
-                fontSize: 14,
-              ),
-            ),
-          ],
+          ),
         ),
-      );
+      ];
     }
 
     // 取得過濾後的教室
     final filteredClassrooms = _getFilteredClassrooms();
     
     if (filteredClassrooms.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.search_off_rounded,
-              size: 64,
-              color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+      return [
+        SliverFillRemaining(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.search_off_rounded,
+                  size: 64,
+                  color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '沒有符合條件的空教室',
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '試試調整篩選條件',
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              '沒有符合條件的空教室',
-              style: TextStyle(
-                color: colorScheme.onSurfaceVariant,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '試試調整篩選條件',
-              style: TextStyle(
-                color: colorScheme.onSurfaceVariant.withOpacity(0.7),
-                fontSize: 14,
-              ),
-            ),
-          ],
+          ),
         ),
-      );
+      ];
     }
 
     // 顯示教室列表
-    return CustomScrollView(
-      slivers: [
+    return [
         // 統計資訊和圖例
         SliverToBoxAdapter(
           child: Container(
@@ -660,21 +680,20 @@ class _EmptyClassroomPageState extends State<EmptyClassroomPage>
             ),
           ),
         ),
-        // 教室列表
-        SliverPadding(
-          padding: const EdgeInsets.all(8),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final classroom = filteredClassrooms[index];
-                return _buildClassroomCard(classroom, theme);
-              },
-              childCount: filteredClassrooms.length,
-            ),
+      // 教室列表
+      SliverPadding(
+        padding: const EdgeInsets.all(8),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final classroom = filteredClassrooms[index];
+              return _buildClassroomCard(classroom, theme);
+            },
+            childCount: filteredClassrooms.length,
           ),
         ),
-      ],
-    );
+      ),
+    ];
   }
 
   Widget _buildClassroomCard(EmptyClassroom classroom, ThemeData theme) {

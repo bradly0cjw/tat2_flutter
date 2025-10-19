@@ -248,6 +248,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
+          tabAlignment: TabAlignment.center,
           labelColor: Theme.of(context).brightness == Brightness.light
               ? Colors.black
               : Colors.white,
