@@ -159,40 +159,51 @@ class _WeeklyCourseTableTatState extends State<WeeklyCourseTableTat> {
     final courseGrid = _getCachedCourseGrid();
     final sectionRange = _calculateSectionRange(courseGrid);
     
-    // 構建完整課表
-    final shouldSkipN = sectionRange.containsKey('skipN');
-    final tableContent = Column(
-      children: [
-        _buildHeader(context),
-        ...() {
-          final widgets = <Widget>[];
-          for (int i = sectionRange['min']!; i <= sectionRange['max']!; i++) {
-            // 如果需要跳過 N 節（index = 4）且當前是 N 節，則跳過
-            if (shouldSkipN && i == 4) {
-              continue;
+    // 構建課表內容的函數（可重複使用）
+    Widget buildTableContent() {
+      final shouldSkipN = sectionRange.containsKey('skipN');
+      return Column(
+        children: [
+          _buildHeader(context),
+          ...() {
+            final widgets = <Widget>[];
+            for (int i = sectionRange['min']!; i <= sectionRange['max']!; i++) {
+              // 如果需要跳過 N 節（index = 4）且當前是 N 節，則跳過
+              if (shouldSkipN && i == 4) {
+                continue;
+              }
+              widgets.add(_buildSection(context, i, courseGrid));
             }
-            widgets.add(_buildSection(context, i, courseGrid));
-          }
-          return widgets;
-        }(),
-      ],
-    );
+            return widgets;
+          }(),
+        ],
+      );
+    }
     
     // 根據是否需要截圖來決定佈局
     if (widget.repaintKey != null) {
+      // 獲取螢幕寬度來設定截圖 widget 的寬度
+      final screenWidth = MediaQuery.of(context).size.width;
+      
       return Stack(
         children: [
           // 正常顯示的課表（可滾動）
           SingleChildScrollView(
-            child: tableContent,
+            child: buildTableContent(),
           ),
-          // 隱藏的截圖用課表
+          // 隱藏的截圖用課表（用於生成小工具）
           Positioned(
             left: -10000,
             top: 0,
-            child: RepaintBoundary(
-              key: widget.repaintKey,
-              child: tableContent,
+            child: SizedBox(
+              width: screenWidth,
+              child: RepaintBoundary(
+                key: widget.repaintKey,
+                child: Container(
+                  color: Theme.of(context).colorScheme.surface,
+                  child: buildTableContent(),
+                ),
+              ),
             ),
           ),
         ],
@@ -200,7 +211,7 @@ class _WeeklyCourseTableTatState extends State<WeeklyCourseTableTat> {
     }
     
     return SingleChildScrollView(
-      child: tableContent,
+      child: buildTableContent(),
     );
   }
   

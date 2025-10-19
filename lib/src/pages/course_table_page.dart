@@ -7,6 +7,7 @@ import '../providers/auth_provider_v2.dart';
 import '../services/course_color_service.dart';
 import '../services/widget_service.dart' hide debugPrint; // 導入 Widget 服務,但隱藏 debugPrint 避免衝突
 import '../widgets/weekly_course_table.dart';
+import '../widgets/weekly_course_table_tat.dart';
 import 'course_syllabus_page.dart';
 
 class CourseTablePage extends StatefulWidget {
@@ -97,12 +98,12 @@ class _CourseTablePageState extends State<CourseTablePage> {
         // 已登入，立即載入
         await _loadAvailableSemesters();
       } else if (authProvider.isLoading) {
-        // 正在登入中，等待登入完成
-        debugPrint('[CourseTable] 正在登入中，等待登入完成...');
+        // 正在登入中：先展示快取（若存在），並等待登入完成後再更新
+        debugPrint('[CourseTable] 正在登入中，先載入快取並等待登入完成...');
         setState(() {
           _waitingForLogin = true;
-          _isLoading = true;
         });
+        await _loadAvailableSemesters();
       } else {
         // 未登入也未在登入中，嘗試從緩存載入或顯示空白
         debugPrint('[CourseTable] 未登入，嘗試從緩存載入');
@@ -119,6 +120,69 @@ class _CourseTablePageState extends State<CourseTablePage> {
     // 延遲確保 UI 渲染完成
     await Future.delayed(const Duration(milliseconds: 300));
     await WidgetService.updateWidgetWithScreenshot(_courseTableKey);
+  }
+  
+  /// 設為桌面小工具
+  Future<void> _setAsWidget() async {
+    if (_courses.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('沒有課程數據，無法設為小工具')),
+      );
+      return;
+    }
+    
+    try {
+      // 顯示載入對話框
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('正在生成小工具...'),
+            ],
+          ),
+        ),
+      );
+      
+      // 等待一下確保渲染完成
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // 生成截圖並更新小工具
+      await WidgetService.updateWidgetWithScreenshot(_courseTableKey);
+      
+      if (mounted) {
+        // 關閉載入對話框
+        Navigator.of(context).pop();
+        
+        // 顯示成功訊息
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('小工具已更新！請到桌面查看'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[CourseTable] 設為小工具失敗: $e');
+      
+      if (mounted) {
+        // 關閉載入對話框
+        Navigator.of(context).pop();
+        
+        // 顯示錯誤訊息
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('設為小工具失敗: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
   
   /// 載入可用的學年學期列表
@@ -169,10 +233,15 @@ class _CourseTablePageState extends State<CourseTablePage> {
             debugPrint('[CourseTable] 未登入，使用緩存的學期列表');
             // 繼續使用緩存，不中斷流程
           } else {
-            debugPrint('[CourseTable] 未登入，等待登入完成');
+            // 沒有緩存就不要卡在轉圈圈，顯示空狀態並等待登入完成
+            debugPrint('[CourseTable] 未登入且無緩存 => 顯示空狀態，等待登入完成');
             setState(() {
               _waitingForLogin = true;
-              _isLoading = true;
+              _isLoading = false;
+              _availableSemesters = [];
+              _courses = [];
+              _hasInitialLoaded = true; // 標記初始載入完成以顯示空狀態
+              _error = '';
             });
             return;
           }
@@ -335,6 +404,9 @@ class _CourseTablePageState extends State<CourseTablePage> {
           _lastCacheTime = cachedTime != null ? DateTime.parse(cachedTime) : null;
           _hasInitialLoaded = true; // 標記已完成初始載入
         });
+
+        // 同步更新桌面小工具截圖（快取路徑也要更新）
+        _updateWidget();
       } else {
         // 沒有緩存,需要載入
         _loadCourseTable();
@@ -618,6 +690,67 @@ class _CourseTablePageState extends State<CourseTablePage> {
     );
   }
   
+  /// 顯示學期選擇 Bottom Sheet
+  void _showSemesterBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  const Text(
+                    '選擇學期',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: _availableSemesters.length,
+                itemBuilder: (context, index) {
+                  final semesterInfo = _availableSemesters[index];
+                  final year = semesterInfo['year'] as int;
+                  final semester = semesterInfo['semester'] as int;
+                  final count = semesterInfo['courseCount'] as int? ?? 0;
+                  final isSelected = year == _selectedYear && semester == _selectedSemester;
+                  
+                  return ListTile(
+                    leading: Icon(
+                      isSelected ? Icons.check_circle : Icons.circle_outlined,
+                      color: isSelected ? Theme.of(context).primaryColor : null,
+                    ),
+                    title: Text('$year 學年度 第 $semester 學期'),
+                    subtitle: count > 0 ? Text('$count 門課程') : null,
+                    selected: isSelected,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _changeSemester(year, semester);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -626,70 +759,84 @@ class _CourseTablePageState extends State<CourseTablePage> {
           ? '$_selectedYear 學年度 第 $_selectedSemester 學期'
           : '課表'),
         actions: [
-          // 學期選擇
-          if (_availableSemesters.isNotEmpty)
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.calendar_today),
-              tooltip: '選擇學期',
-              onSelected: (value) {
-                final parts = value.split('-');
-                _changeSemester(int.parse(parts[0]), int.parse(parts[1]));
-              },
-              itemBuilder: (context) {
-                return _availableSemesters.map((semesterInfo) {
-                  final year = semesterInfo['year'] as int;
-                  final semester = semesterInfo['semester'] as int;
-                  final count = semesterInfo['courseCount'] as int? ?? 0;
-                  final isSelected = year == _selectedYear && semester == _selectedSemester;
-                  return PopupMenuItem<String>(
-                    value: '$year-$semester',
-                    child: Row(
-                      children: [
-                        if (isSelected)
-                          const Icon(Icons.check, size: 16),
-                        if (isSelected)
-                          const SizedBox(width: 8),
-                        Text('$year 學年度 第 $semester 學期${count > 0 ? " ($count 門課)" : ""}'),
-                      ],
-                    ),
-                  );
-                }).toList();
-              },
-            ),
-          // 刷新菜單
+          // 統一功能選單
           PopupMenuButton<String>(
-            icon: const Icon(Icons.refresh),
-            tooltip: '刷新',
+            icon: const Icon(Icons.more_vert),
+            tooltip: '更多功能',
             onSelected: (value) {
-              if (value == 'refresh_table') {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('重新取得課表中...')),
-                );
-                _loadCourseTable(forceRefresh: true);
-              } else if (value == 'refresh_semesters') {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('重新取得學期列表中...')),
-                );
-                _loadAvailableSemesters(retryCount: 1);
+              switch (value) {
+                case 'select_semester':
+                  _showSemesterBottomSheet();
+                  break;
+                case 'set_widget':
+                  _setAsWidget();
+                  break;
+                case 'refresh_table':
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('重新取得課表中...')),
+                  );
+                  _loadCourseTable(forceRefresh: true);
+                  break;
+                case 'refresh_semesters':
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('重新取得學期列表中...')),
+                  );
+                  _loadAvailableSemesters(retryCount: 1);
+                  break;
               }
             },
             itemBuilder: (context) => [
+              // 選擇學期
+              if (_availableSemesters.isNotEmpty)
+                const PopupMenuItem<String>(
+                  value: 'select_semester',
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today),
+                      SizedBox(width: 12),
+                      Text('選擇學期'),
+                    ],
+                  ),
+                ),
+              // 設為小工具
+              PopupMenuItem<String>(
+                value: 'set_widget',
+                enabled: _courses.isNotEmpty,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.widgets,
+                      color: _courses.isEmpty ? Colors.grey : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '設為桌面小工具',
+                      style: TextStyle(
+                        color: _courses.isEmpty ? Colors.grey : null,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              // 刷新課表
               const PopupMenuItem<String>(
                 value: 'refresh_table',
                 child: Row(
                   children: [
                     Icon(Icons.table_chart),
-                    SizedBox(width: 8),
+                    SizedBox(width: 12),
                     Text('刷新課表'),
                   ],
                 ),
               ),
+              // 刷新學期列表
               const PopupMenuItem<String>(
                 value: 'refresh_semesters',
                 child: Row(
                   children: [
                     Icon(Icons.calendar_month),
-                    SizedBox(width: 8),
+                    SizedBox(width: 12),
                     Text('刷新學期列表'),
                   ],
                 ),
