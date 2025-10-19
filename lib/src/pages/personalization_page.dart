@@ -2,12 +2,170 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/theme_settings_service.dart';
 import '../services/course_color_service.dart';
+import '../services/badge_service.dart';
 import '../l10n/app_localizations.dart';
 import '../../ui/theme/app_theme.dart';
 
 /// 個人化設定頁面
-class PersonalizationPage extends StatelessWidget {
+class PersonalizationPage extends StatefulWidget {
   const PersonalizationPage({super.key});
+
+  @override
+  State<PersonalizationPage> createState() => _PersonalizationPageState();
+}
+
+class _PersonalizationPageState extends State<PersonalizationPage> {
+  @override
+  void initState() {
+    super.initState();
+    _checkAndShowIntroDialog();
+  }
+
+  /// 檢查是否首次訪問，如果是則顯示介紹彈窗
+  Future<void> _checkAndShowIntroDialog() async {
+    final shouldShow = await BadgeService().shouldShowPersonalizationBadge();
+    
+    if (shouldShow && mounted) {
+      // 標記為已訪問
+      await BadgeService().markPersonalizationAsVisited();
+      
+      // 延遲一下讓頁面完全加載後再顯示彈窗
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      if (mounted) {
+        _showIntroDialog();
+      }
+    }
+  }
+
+  /// 顯示個人化功能介紹彈窗
+  void _showIntroDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        icon: Icon(
+          Icons.palette,
+          size: 48,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        title: const Text('歡迎來到個人化設定'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '這裡可以自訂 App 的外觀與體驗：',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildIntroPoint(
+                Icons.color_lens,
+                '主題顏色',
+                '選擇你喜歡的主題色調',
+              ),
+              const SizedBox(height: 12),
+              _buildIntroPoint(
+                Icons.brightness_6,
+                '深淺模式',
+                '切換亮色或暗色主題',
+              ),
+              const SizedBox(height: 12),
+              _buildIntroPoint(
+                Icons.language,
+                '語言設定',
+                '支援繁體中文和英文',
+              ),
+              const SizedBox(height: 12),
+              _buildIntroPoint(
+                Icons.grid_view,
+                '課表風格',
+                '選擇喜歡的課表顯示方式',
+              ),
+              const SizedBox(height: 12),
+              _buildIntroPoint(
+                Icons.palette_outlined,
+                '課程配色',
+                '自訂課表的配色方案',
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.tips_and_updates,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        '長按課表中的課程可以自訂顏色喔！',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('開始探索'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIntroPoint(IconData icon, String title, String description) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          size: 20,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

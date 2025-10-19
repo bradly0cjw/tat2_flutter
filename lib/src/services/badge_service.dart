@@ -32,6 +32,7 @@ class BadgeService extends ChangeNotifier {
   static const String _autoCheckEnabledKey = 'badge_auto_check_ischool';
   static const String _lastCheckTimeKey = 'badge_last_check_time_ischool';
   static const String _courseLastSyncPrefix = 'badge_course_sync_'; // 每個課程的上次同步時間
+  static const String _personalizationVisitedKey = 'personalization_first_visit'; // 個人化頁面是否已訪問
   static const int _checkIntervalMinutes = 15; // 15分鐘檢查一次
 
   SharedPreferences? _prefs;
@@ -401,6 +402,55 @@ class BadgeService extends ChangeNotifier {
   /// 檢查 i學院紅點功能是否啟用
   Future<bool> isISchoolBadgeEnabled() async {
     return await isFeatureEnabled(BadgeFeature.ischool);
+  }
+
+  // ==================== 個人化頁面首次訪問追蹤 ====================
+  
+  /// 檢查個人化頁面是否需要顯示紅點（未被訪問過）
+  Future<bool> shouldShowPersonalizationBadge() async {
+    await init();
+    // 如果全局隱藏紅點，返回 false
+    if (await isHideAllBadges()) {
+      return false;
+    }
+    // 如果已訪問過，返回 false（不顯示紅點）
+    final visited = _prefs?.getBool(_personalizationVisitedKey) ?? false;
+    return !visited;
+  }
+
+  /// 標記個人化頁面已被訪問
+  Future<void> markPersonalizationAsVisited() async {
+    await init();
+    await _prefs?.setBool(_personalizationVisitedKey, true);
+    notifyListeners();
+  }
+
+  /// 檢查「其他」頁面是否有任何紅點
+  /// 包括：個人化頁面、北科i學園等在「其他」頁面中顯示的功能
+  /// 
+  /// [otherFeatureIds] 當前在「其他」頁面中顯示的功能 ID 列表
+  Future<bool> hasOtherPageBadge(List<String> otherFeatureIds) async {
+    // 如果全局隱藏紅點，返回 false
+    if (await isHideAllBadges()) {
+      return false;
+    }
+    
+    // 1. 檢查個人化頁面是否有紅點（個人化固定在「其他」頁面的設定區中）
+    if (await shouldShowPersonalizationBadge()) {
+      return true;
+    }
+    
+    // 2. 檢查 i學院是否在「其他」頁面中且有未讀
+    if (otherFeatureIds.contains('ntut_learn')) {
+      if (await hasAnyUnreadInISchool()) {
+        return true;
+      }
+    }
+    
+    // 3. 未來可以在這裡添加更多功能的紅點檢查
+    // 例如：社團公告、訊息等
+    
+    return false;
   }
 
   // ==================== 其他功能專用方法（預留） ====================

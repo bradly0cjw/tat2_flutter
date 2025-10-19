@@ -158,17 +158,42 @@ class _OtherFeaturesPageState extends State<OtherFeaturesPage> {
           ),
           const Divider(),
           
-          ListTile(
-            leading: const Icon(Icons.palette),
-            title: Text(l10n.personalization),
-            subtitle: Text(l10n.themeSettings),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PersonalizationPage(),
+          // 個人化設定（帶紅點提示）
+          FutureBuilder<bool>(
+            future: BadgeService().shouldShowPersonalizationBadge(),
+            builder: (context, snapshot) {
+              final hasUnread = snapshot.data ?? false;
+              return ListTile(
+                leading: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.palette),
+                    if (hasUnread)
+                      Positioned(
+                        right: -4,
+                        top: -4,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
+                title: Text(l10n.personalization),
+                subtitle: Text(l10n.themeSettings),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PersonalizationPage(),
+                    ),
+                  );
+                },
               );
             },
           ),

@@ -344,13 +344,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final navConfig = context.read<NavigationConfigService>();
     final otherFeatures = navConfig.getOtherFeatures();
     
-    // 檢查 ntut_learn 是否在「其他」頁面中
-    final hasNtutLearnInOther = otherFeatures.any((item) => item.id == 'ntut_learn');
-    if (hasNtutLearnInOther) {
-      return await BadgeService().hasAnyUnreadInISchool();
-    }
+    // 取得所有在「其他」頁面中的功能 ID
+    final otherFeatureIds = otherFeatures.map((item) => item.id).toList();
     
-    return false;
+    // 統一使用 BadgeService 檢查所有紅點
+    return await BadgeService().hasOtherPageBadge(otherFeatureIds);
   }
 
   @override
