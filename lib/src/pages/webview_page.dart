@@ -110,11 +110,26 @@ class _WebViewPageState extends State<WebViewPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: SafeArea(
+    return PopScope(
+      canPop: false, // 阻止預設的返回行為
+      onPopInvoked: (bool didPop) async {
+        if (didPop) return;
+        
+        // 檢查 WebView 是否可以後退
+        if (await _controller.canGoBack()) {
+          _controller.goBack();
+        } else {
+          // 如果 WebView 無法後退，才真正返回上一頁
+          if (context.mounted) {
+            Navigator.of(context).pop();
+          }
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.title),
+        ),
+        body: SafeArea(
         child: Column(
           children: [
             // 進度條
@@ -222,6 +237,7 @@ class _WebViewPageState extends State<WebViewPage> {
           ],
         ),
       ),
+    ), // 閉合 PopScope
     );
   }
 
