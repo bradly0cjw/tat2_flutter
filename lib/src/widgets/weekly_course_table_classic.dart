@@ -83,15 +83,17 @@ class _WeeklyCourseTableClassicState extends State<WeeklyCourseTableClassic> {
     }
   }
   
-  /// 將節次索引轉換為顯示文字（10+ 節次顯示為 A, B, C...）
+  // 節次標籤對應表（與 TAT 一致）
+  static const List<String> sectionLabels = [
+    '1', '2', '3', '4', 'N', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D'
+  ];
+  
+  /// 將節次索引轉換為顯示文字
   String _getSectionLabel(int sectionIndex) {
-    final sectionNumber = sectionIndex + 1;
-    if (sectionNumber <= 9) {
-      return sectionNumber.toString();
-    } else {
-      // 10=A, 11=B, 12=C, 13=D, 14=E
-      return String.fromCharCode(55 + sectionNumber); // 65='A', 所以 65-10=55
+    if (sectionIndex >= 0 && sectionIndex < sectionLabels.length) {
+      return sectionLabels[sectionIndex];
     }
+    return sectionIndex.toString();
   }
   
   @override
@@ -130,12 +132,20 @@ class _WeeklyCourseTableClassicState extends State<WeeklyCourseTableClassic> {
       // 課表內容（只顯示有課的節次範圍）
       ...() {
         final widgets = <Widget>[];
+        final hasLunch = sectionRange['hasLunch'] == 1;
+        final hasNSection = sectionRange['hasNSection'] == 1;
+        
         for (int sectionIndex = minSection; sectionIndex <= maxSection; sectionIndex++) {
+          // 如果沒有 N 節課程但範圍包含 N 節，則跳過 N 節（與 TAT 一致）
+          if (!hasNSection && sectionIndex == 4) {
+            continue;
+          }
+          
           widgets.add(_buildSection(context, sectionIndex, courseGrid, dayWidth));
           
           // 在第 4 節後添加午休分隔（第 4 節的 index 是 3）
-          // 只在午休時間在顯示範圍內時才顯示
-          if (sectionIndex == 3 && maxSection >= 4) {
+          // 只有在有午休時間標記時才顯示（即第5節沒有課程）
+          if (sectionIndex == 3 && hasLunch) {
             widgets.add(_buildLunchBreak(context, dayWidth));
           }
         }
@@ -207,37 +217,36 @@ class _WeeklyCourseTableClassicState extends State<WeeklyCourseTableClassic> {
   }
   
   /// 計算實際有課的節次範圍
-  /// 返回 {'min': 最早節次索引, 'max': 最晚節次索引}
+  /// 返回 {'min': 最早節次索引, 'max': 最晚節次索引, 'hasLunch': 是否有午休時間, 'hasNSection': 是否有N節課程}
   Map<String, int> _calculateSectionRange(Map<String, List<Map<String, dynamic>>> courseGrid) {
     if (courseGrid.isEmpty) {
       // 沒有課程，顯示預設範圍（第1節到第10節）
-      return {'min': 0, 'max': 9};
+      return {'min': 0, 'max': 9, 'hasLunch': 0, 'hasNSection': 0};
     }
     
     int minSection = 13; // 最晚可能的節次
     int maxSection = 0;  // 最早可能的節次
+    bool hasNSection = false; // 追蹤是否有 N 節課程（index=4）
     
     // 遍歷所有課程格子，找出最早和最晚的節次
     for (final key in courseGrid.keys) {
       if (courseGrid[key]?.isEmpty ?? true) continue;
       
-      // 解析 key，格式為 "星期-節次"，例如 "一-3" 或 "一-A"
+      // 解析 key，格式為 "星期-節次"，例如 "一-3", "一-N", "一-A"
       final parts = key.split('-');
       if (parts.length != 2) continue;
       
       final sectionStr = parts[1];
-      int sectionIndex;
       
-      // 處理數字和字母形式的節次
-      if (int.tryParse(sectionStr) != null) {
-        sectionIndex = int.parse(sectionStr) - 1; // 轉換為 0-based index
-      } else {
-        // 字母形式：A=第10節(index=9), B=第11節(index=10), C=第12節(index=11)...
-        final charCode = sectionStr.codeUnitAt(0);
-        sectionIndex = charCode - 56; // 'A'=65, 65-56=9
-      }
+      // 使用 sectionLabels 來查找索引（與 TAT 一致）
+      final sectionIndex = sectionLabels.indexOf(sectionStr);
       
       if (sectionIndex >= 0 && sectionIndex < 14) {
+        // 檢查是否有 N 節課程（index=4）
+        if (sectionIndex == 4) {
+          hasNSection = true;
+        }
+        
         minSection = minSection < sectionIndex ? minSection : sectionIndex;
         maxSection = maxSection > sectionIndex ? maxSection : sectionIndex;
       }
@@ -245,13 +254,22 @@ class _WeeklyCourseTableClassicState extends State<WeeklyCourseTableClassic> {
     
     // 如果沒有找到任何課程，返回預設範圍
     if (minSection > maxSection) {
-      return {'min': 0, 'max': 9};
+      return {'min': 0, 'max': 9, 'hasLunch': 0, 'hasNSection': 0};
     }
     
-    // 智能調整顯示範圍:只顯示有課的節次範圍
-    // 不再強制從第 1 節開始或顯示到中午
+    // 判斷是否顯示午休時間：
+    // 只有當範圍跨越第4節（index=3）和第5節之後（index>=5），且 N 節（index=4）沒有課程時，才顯示午休
+    final hasLunch = (minSection <= 3 && maxSection >= 5 && !hasNSection) ? 1 : 0;
     
-    return {'min': minSection, 'max': maxSection};
+    // Debug 輸出
+    debugPrint('[ClassicTable] 節次範圍: min=$minSection, max=$maxSection, hasNSection=$hasNSection, hasLunch=$hasLunch');
+    
+    return {
+      'min': minSection, 
+      'max': maxSection, 
+      'hasLunch': hasLunch,
+      'hasNSection': hasNSection ? 1 : 0,
+    };
   }
   
   Widget _buildLunchBreak(BuildContext context, double dayWidth) {
@@ -381,13 +399,9 @@ class _WeeklyCourseTableClassicState extends State<WeeklyCourseTableClassic> {
           ),
           // 每天的課程
           ...weekDays.map((day) {
-            // 支援數字和字母形式查找（例如 "一-10" 或 "一-A"）
-            final sectionNumber = sectionIndex + 1;
-            String keyNum = '$day-$sectionNumber';
-            String keyLetter = '$day-${_getSectionLabel(sectionIndex)}';
-            
-            // 先嘗試數字形式，再嘗試字母形式
-            final coursesInSlot = courseGrid[keyNum] ?? courseGrid[keyLetter] ?? [];
+            // 使用 sectionLabels 來查找（與 TAT 一致）
+            final key = '$day-${_getSectionLabel(sectionIndex)}';
+            final coursesInSlot = courseGrid[key] ?? [];
             
             return Container(
               width: dayWidth,

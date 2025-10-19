@@ -100,16 +100,17 @@ class _WeeklyCourseTableMaterial3State extends State<WeeklyCourseTableMaterial3>
     }
   }
   
-  /// 將節次索引轉換為顯示文字（10+ 節次顯示為 A, B, C...）
+  // 節次標籤對應表（與 TAT 一致）
+  static const List<String> sectionLabels = [
+    '1', '2', '3', '4', 'N', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D'
+  ];
+  
+  /// 將節次索引轉換為顯示文字
   String _getSectionLabel(int sectionIndex) {
-    final sectionNumber = sectionIndex + 1;
-    if (sectionNumber <= 9) {
-      return sectionNumber.toString();
-    } else {
-      // 10=A, 11=B, 12=C, 13=D, 14=E
-      // sectionNumber=10 -> 'A'(65), sectionNumber=11 -> 'B'(66)
-      return String.fromCharCode(65 + sectionNumber - 10); // A=65, 10節開始
+    if (sectionIndex >= 0 && sectionIndex < sectionLabels.length) {
+      return sectionLabels[sectionIndex];
     }
+    return sectionIndex.toString();
   }
   
   /// 構建合併後的課程列表（相鄰的同一課程合併成一個大卡片）
@@ -151,10 +152,9 @@ class _WeeklyCourseTableMaterial3State extends State<WeeklyCourseTableMaterial3>
       for (int section = 0; section < sectionTimes.length; section++) {
         if (processedSections.contains(section)) continue;
         
-        // 支援數字和字母兩種格式查找
-        final keyNum = '$day-${section + 1}';
-        final keyLetter = '$day-${_getSectionLabel(section)}';
-        final course = courseGrid[keyNum] ?? courseGrid[keyLetter];
+        // 使用 sectionLabels 來查找（與 TAT 一致）
+        final key = '$day-${_getSectionLabel(section)}';
+        final course = courseGrid[key];
         
         if (course == null) continue;
         
@@ -163,9 +163,8 @@ class _WeeklyCourseTableMaterial3State extends State<WeeklyCourseTableMaterial3>
         // 找出連續的相同課程
         int endSection = section;
         for (int nextSection = section + 1; nextSection < sectionTimes.length; nextSection++) {
-          final nextKeyNum = '$day-${nextSection + 1}';
-          final nextKeyLetter = '$day-${_getSectionLabel(nextSection)}';
-          final nextCourse = courseGrid[nextKeyNum] ?? courseGrid[nextKeyLetter];
+          final nextKey = '$day-${_getSectionLabel(nextSection)}';
+          final nextCourse = courseGrid[nextKey];
           
           if (nextCourse != null && (nextCourse['courseId'] ?? '') == courseId) {
             endSection = nextSection;
@@ -213,6 +212,7 @@ class _WeeklyCourseTableMaterial3State extends State<WeeklyCourseTableMaterial3>
     final sectionRange = _calculateSectionRange(mergedCourses);
     final minSection = sectionRange['min'] ?? 0;
     final maxSection = sectionRange['max'] ?? 13;
+    final hasNSection = sectionRange['hasNSection'] == 1;
     
     // 構建主課表視圖
     final courseTableWidget = _buildCourseTableView(
@@ -220,6 +220,7 @@ class _WeeklyCourseTableMaterial3State extends State<WeeklyCourseTableMaterial3>
       mergedCourses,
       minSection,
       maxSection,
+      hasNSection,
       screenWidth - 8, // 扣除左右 padding (4 + 4)
     );
     
@@ -242,6 +243,7 @@ class _WeeklyCourseTableMaterial3State extends State<WeeklyCourseTableMaterial3>
                   mergedCourses,
                   minSection,
                   maxSection,
+                  hasNSection,
                   screenWidth - 8,
                   isCapture: true,
                 ),
@@ -261,6 +263,7 @@ class _WeeklyCourseTableMaterial3State extends State<WeeklyCourseTableMaterial3>
     List<_MergedCourse> mergedCourses,
     int minSection,
     int maxSection,
+    bool hasNSection,
     double width, {
     bool isCapture = false,
   }) {
@@ -280,12 +283,20 @@ class _WeeklyCourseTableMaterial3State extends State<WeeklyCourseTableMaterial3>
     final dayWidth = contentWidth / 5;
     
     // 計算是否需要午休欄及總高度
-    final hasLunchBreak = minSection <= 3 && maxSection >= 4;
+    // 只有當範圍跨越第4節（index=3）和下午（index>=5），且 N 節（index=4）沒有課程時，才顯示午休
+    final hasLunchBreak = minSection <= 3 && maxSection >= 5 && !hasNSection;
     final lunchBreakTotalHeight = hasLunchBreak 
         ? (lunchBreakHeight + lunchBreakTopMargin + lunchBreakBottomMargin) 
         : 0;
+    
+    // 計算實際顯示的節次數量（如果跳過 N 節則減1）
+    int actualSectionCount = maxSection - minSection + 1;
+    if (!hasNSection && minSection <= 4 && maxSection >= 4) {
+      actualSectionCount -= 1; // 跳過 N 節
+    }
+    
     final totalHeight = labelHeight + 
-                       (maxSection - minSection + 1) * sectionHeight + 
+                       actualSectionCount * sectionHeight + 
                        lunchBreakTotalHeight;
     
     // 午休欄位置（在第4節後）
@@ -314,6 +325,7 @@ class _WeeklyCourseTableMaterial3State extends State<WeeklyCourseTableMaterial3>
             lunchBreakTopMargin,
             lunchBreakBottomMargin,
             hasLunchBreak,
+            hasNSection,
           ),
           
           // 課程層：懸浮的課程卡片
@@ -327,6 +339,7 @@ class _WeeklyCourseTableMaterial3State extends State<WeeklyCourseTableMaterial3>
             dayWidth,
             lunchBreakPosition,
             lunchBreakActualHeight,
+            hasNSection,
           ),
         ],
       ),
@@ -355,6 +368,7 @@ class _WeeklyCourseTableMaterial3State extends State<WeeklyCourseTableMaterial3>
     double lunchBreakTopMargin,
     double lunchBreakBottomMargin,
     bool hasLunchBreak,
+    bool hasNSection,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
@@ -422,74 +436,12 @@ class _WeeklyCourseTableMaterial3State extends State<WeeklyCourseTableMaterial3>
     for (int index = 0; index <= maxSection - minSection; index++) {
       final sectionIndex = minSection + index;
       
-      // 如果需要在第4節後插入午休欄
-      if (hasLunchBreak && sectionIndex == 4) {
-        // 午休欄（增強視覺效果，調整間距）
-        widgets.add(
-          Positioned(
-            top: currentTop + lunchBreakTopMargin,
-            left: labelWidth,
-            child: Container(
-              width: contentWidth,
-              height: lunchBreakHeight,
-              margin: const EdgeInsets.symmetric(horizontal: 4), // 只保留左右間距
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: isDark 
-                      ? [
-                          colorScheme.tertiaryContainer.withOpacity(0.4),
-                          colorScheme.tertiaryContainer.withOpacity(0.25),
-                          colorScheme.tertiaryContainer.withOpacity(0.4),
-                        ]
-                      : [
-                          colorScheme.tertiaryContainer.withOpacity(0.5),
-                          colorScheme.tertiaryContainer.withOpacity(0.35),
-                          colorScheme.tertiaryContainer.withOpacity(0.5),
-                        ],
-                ),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: colorScheme.outline.withOpacity(0.15),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: colorScheme.tertiary.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.restaurant_rounded,
-                      size: 16,
-                      color: colorScheme.onTertiaryContainer.withOpacity(0.8),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '午休時間',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: colorScheme.onTertiaryContainer.withOpacity(0.8),
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-        currentTop += lunchBreakHeight + lunchBreakTopMargin + lunchBreakBottomMargin;
+      // 如果沒有 N 節課程但範圍包含 N 節，則跳過 N 節（與 TAT 一致）
+      if (!hasNSection && sectionIndex == 4) {
+        continue;
       }
       
+      // 先渲染當前節次
       // 節次行（添加背景格線）
       widgets.add(
         Positioned(
@@ -555,6 +507,74 @@ class _WeeklyCourseTableMaterial3State extends State<WeeklyCourseTableMaterial3>
       );
       
       currentTop += sectionHeight;
+      
+      // 如果需要在第4節後插入午休欄（在渲染完 index=3 之後）
+      if (hasLunchBreak && sectionIndex == 3) {
+        // 午休欄（增強視覺效果，調整間距）
+        widgets.add(
+          Positioned(
+            top: currentTop + lunchBreakTopMargin,
+            left: labelWidth,
+            child: Container(
+              width: contentWidth,
+              height: lunchBreakHeight,
+              margin: const EdgeInsets.symmetric(horizontal: 4), // 只保留左右間距
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: isDark 
+                      ? [
+                          colorScheme.tertiaryContainer.withOpacity(0.4),
+                          colorScheme.tertiaryContainer.withOpacity(0.25),
+                          colorScheme.tertiaryContainer.withOpacity(0.4),
+                        ]
+                      : [
+                          colorScheme.tertiaryContainer.withOpacity(0.5),
+                          colorScheme.tertiaryContainer.withOpacity(0.35),
+                          colorScheme.tertiaryContainer.withOpacity(0.5),
+                        ],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: colorScheme.outline.withOpacity(0.15),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: colorScheme.tertiary.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.restaurant_rounded,
+                      size: 16,
+                      color: colorScheme.onTertiaryContainer.withOpacity(0.8),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '午休時間',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: colorScheme.onTertiaryContainer.withOpacity(0.8),
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        currentTop += lunchBreakHeight + lunchBreakTopMargin + lunchBreakBottomMargin;
+      }
     }
     
     return Stack(
@@ -573,16 +593,22 @@ class _WeeklyCourseTableMaterial3State extends State<WeeklyCourseTableMaterial3>
     double dayWidth,
     double? lunchBreakPosition,
     double lunchBreakActualHeight,
+    bool hasNSection,
   ) {
     return Stack(
       children: mergedCourses.map((merged) {
         // 計算卡片位置和尺寸
         final left = labelWidth + merged.dayIndex * dayWidth;
         
-        // 計算 top 位置，需要考慮午休欄的影響
+        // 計算 top 位置，需要考慮午休欄和跳過 N 節的影響
         var top = labelHeight + (merged.startSection - minSection) * sectionHeight;
         
-        // 如果課程在第5節（午休後）或更晚，需要加上午休欄高度
+        // 如果跳過了 N 節（index=4），且課程在第5節（index=5）或更晚，需要減去一個節次高度
+        if (!hasNSection && merged.startSection >= 5 && minSection <= 4) {
+          top -= sectionHeight;
+        }
+        
+        // 如果有午休欄，需要加上午休欄高度
         if (lunchBreakPosition != null && merged.startSection >= 4) {
           top += lunchBreakActualHeight;
         }
@@ -725,15 +751,16 @@ class _WeeklyCourseTableMaterial3State extends State<WeeklyCourseTableMaterial3>
       ),
     );
   }  /// 計算實際有課的節次範圍
-  /// 返回 {'min': 最早節次索引, 'max': 最晚節次索引}
+  /// 返回 {'min': 最早節次索引, 'max': 最晚節次索引, 'hasNSection': 是否有N節課程}
   Map<String, int> _calculateSectionRange(List<_MergedCourse> mergedCourses) {
     if (mergedCourses.isEmpty) {
       // 沒有課程，顯示預設範圍（第1節到第10節）
-      return {'min': 0, 'max': 9};
+      return {'min': 0, 'max': 9, 'hasNSection': 0};
     }
     
     int minSection = 13; // 最晚可能的節次
     int maxSection = 0;  // 最早可能的節次
+    bool hasNSection = false; // 追蹤是否有 N 節課程（index=4）
     
     // 遍歷所有合併的課程，找出最早和最晚的節次
     for (final merged in mergedCourses) {
@@ -743,14 +770,26 @@ class _WeeklyCourseTableMaterial3State extends State<WeeklyCourseTableMaterial3>
       if (merged.endSection > maxSection) {
         maxSection = merged.endSection;
       }
+      
+      // 檢查是否有 N 節課程（index=4）
+      if (merged.startSection <= 4 && merged.endSection >= 4) {
+        hasNSection = true;
+      }
     }
     
     // 如果沒有找到任何課程，返回預設範圍
     if (minSection > maxSection) {
-      return {'min': 0, 'max': 9};
+      return {'min': 0, 'max': 9, 'hasNSection': 0};
     }
     
-    return {'min': minSection, 'max': maxSection};
+    // Debug 輸出
+    debugPrint('[Material3Table] 節次範圍: min=$minSection, max=$maxSection, hasNSection=$hasNSection');
+    
+    return {
+      'min': minSection, 
+      'max': maxSection,
+      'hasNSection': hasNSection ? 1 : 0,
+    };
   }
   
 
