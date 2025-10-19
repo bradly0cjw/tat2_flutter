@@ -592,7 +592,12 @@ class _AddEventBottomSheetState extends State<AddEventBottomSheet> {
     // 驗證時間
     if (endDateTime.isBefore(startDateTime)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('結束時間不能早於開始時間')),
+        SnackBar(
+          content: const Text('結束時間不能早於開始時間'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
       );
       return;
     }

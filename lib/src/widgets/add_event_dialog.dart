@@ -581,7 +581,12 @@ class _AddEventDialogState extends State<AddEventDialog> {
     // 驗證時間邏輯（只有在設定了時間時才驗證）
     if (_startTime != null && _endTime != null && endDateTime.isBefore(startDateTime)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('結束時間不能早於開始時間')),
+        SnackBar(
+          content: const Text('結束時間不能早於開始時間'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
       );
       return;
     }

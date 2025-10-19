@@ -565,7 +565,12 @@ class _CalendarPageState extends State<CalendarPage> {
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('事件已更新')),
+            SnackBar(
+              content: const Text('事件已更新'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+            ),
           );
         }
       } catch (e) {
@@ -607,7 +612,12 @@ class _CalendarPageState extends State<CalendarPage> {
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('事件已刪除')),
+            SnackBar(
+              content: const Text('事件已刪除'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+            ),
           );
         }
       } catch (e) {
@@ -644,7 +654,12 @@ class _CalendarPageState extends State<CalendarPage> {
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('事件已新增')),
+            SnackBar(
+              content: const Text('事件已新增'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+            ),
           );
         }
       } catch (e) {

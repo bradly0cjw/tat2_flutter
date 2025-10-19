@@ -115,18 +115,30 @@ class _CourseTablePageState extends State<CourseTablePage> {
     }
   }
   
-  /// 更新桌面小工具截圖
+  /// 更新桌面小工具截圖（僅在小工具存在時更新）
   Future<void> _updateWidget() async {
+    // 檢查是否有小工具
+    final hasWidget = await WidgetService.hasWidget();
+    if (!hasWidget) {
+      debugPrint('[CourseTable] 沒有小工具，跳過自動更新');
+      return;
+    }
+    
     // 延遲確保 UI 渲染完成
     await Future.delayed(const Duration(milliseconds: 300));
     await WidgetService.updateWidgetWithScreenshot(_courseTableKey);
   }
   
-  /// 設為桌面小工具
+  /// 設為桌面小工具（用戶主動更新）
   Future<void> _setAsWidget() async {
     if (_courses.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('沒有課程數據，無法設為小工具')),
+        SnackBar(
+          content: const Text('沒有課程數據，無法設為小工具'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
       );
       return;
     }
@@ -151,8 +163,8 @@ class _CourseTablePageState extends State<CourseTablePage> {
       // 等待一下確保渲染完成
       await Future.delayed(const Duration(milliseconds: 500));
       
-      // 生成截圖並更新小工具
-      await WidgetService.updateWidgetWithScreenshot(_courseTableKey);
+      // 強制生成截圖並更新小工具（不檢查小工具是否存在）
+      await WidgetService.updateWidgetWithScreenshot(_courseTableKey, forceUpdate: true);
       
       if (mounted) {
         // 關閉載入對話框
@@ -160,10 +172,11 @@ class _CourseTablePageState extends State<CourseTablePage> {
         
         // 顯示成功訊息
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('小工具已更新！請到桌面查看'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
+          SnackBar(
+            content: const Text('小工具已更新！請到桌面查看'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -405,8 +418,8 @@ class _CourseTablePageState extends State<CourseTablePage> {
           _hasInitialLoaded = true; // 標記已完成初始載入
         });
 
-        // 同步更新桌面小工具截圖（快取路徑也要更新）
-        _updateWidget();
+        // 不在載入快取時自動更新小工具
+        // _updateWidget();
       } else {
         // 沒有緩存,需要載入
         _loadCourseTable();
@@ -504,8 +517,8 @@ class _CourseTablePageState extends State<CourseTablePage> {
         _hasInitialLoaded = true; // 標記已完成初始載入
       });
       
-      // 更新桌面小工具
-      _updateWidget();
+      // 不在自動載入時更新小工具
+      // _updateWidget();
     } catch (e) {
       // 如果網路請求失敗但有緩存，使用緩存
       if (_courses.isNotEmpty) {
@@ -673,7 +686,12 @@ class _CourseTablePageState extends State<CourseTablePage> {
     
     if (syllabusNumber == null || teacherCode == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('此課程無課程大綱資料')),
+        SnackBar(
+          content: const Text('此課程無課程大綱資料'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
       );
       return;
     }
@@ -773,13 +791,23 @@ class _CourseTablePageState extends State<CourseTablePage> {
                   break;
                 case 'refresh_table':
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('重新取得課表中...')),
+                    SnackBar(
+                      content: const Text('重新取得課表中...'),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 2),
+                    ),
                   );
                   _loadCourseTable(forceRefresh: true);
                   break;
                 case 'refresh_semesters':
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('重新取得學期列表中...')),
+                    SnackBar(
+                      content: const Text('重新取得學期列表中...'),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 2),
+                    ),
                   );
                   _loadAvailableSemesters(retryCount: 1);
                   break;

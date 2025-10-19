@@ -130,9 +130,11 @@ class _NtutLearnPageState extends State<NtutLearnPage> {
 
         if (!success) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('登入 i學院失敗，請確認已登入學校帳號'),
-              backgroundColor: Colors.red,
+            SnackBar(
+              content: const Text('登入 i學院失敗，請確認已登入學校帳號'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
             ),
           );
         }
@@ -246,9 +248,11 @@ class _NtutLearnPageState extends State<NtutLearnPage> {
         setState(() {});
         
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('已清除所有 i學院 資料'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text('已清除所有 i學院 資料'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -274,9 +278,11 @@ class _NtutLearnPageState extends State<NtutLearnPage> {
       if (mounted) {
         setState(() {}); // 重新整理以更新紅點顯示
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('已清除所有 i學院 紅點'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text('已清除所有 i學院 紅點'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
           ),
         );
       }

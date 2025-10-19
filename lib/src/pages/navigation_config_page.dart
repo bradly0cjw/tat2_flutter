@@ -112,9 +112,11 @@ class _NavigationConfigPageState extends State<NavigationConfigPage> {
     if (mounted) {
       // 顯示儲存成功並提示即將關閉
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('設定已儲存，App 即將關閉以套用新配置'),
-          duration: Duration(seconds: 1),
+        SnackBar(
+          content: const Text('設定已儲存，App 即將關閉以套用新配置'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 1),
         ),
       );
       

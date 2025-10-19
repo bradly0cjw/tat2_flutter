@@ -11,8 +11,23 @@ import 'package:path_provider/path_provider.dart';
 class WidgetService {
   static const MethodChannel _channel = MethodChannel('org.ntut.qaq/widget');
 
+  /// 檢查是否有小工具存在
+  static Future<bool> hasWidget() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('hasWidget');
+      return result ?? false;
+    } catch (e) {
+      debugPrint('[WidgetService] 檢查小工具失敗: $e');
+      return false;
+    }
+  }
+
   /// 更新桌面小工具 - 使用課表截圖（類似 TAT）
-  static Future<void> updateWidgetWithScreenshot(GlobalKey repaintKey) async {
+  /// [forceUpdate] 強制更新，不檢查小工具是否存在
+  static Future<void> updateWidgetWithScreenshot(
+    GlobalKey repaintKey, {
+    bool forceUpdate = false,
+  }) async {
     try {
       debugPrint('[WidgetService] 開始生成課表截圖...');
       

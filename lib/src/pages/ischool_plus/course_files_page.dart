@@ -728,9 +728,11 @@ class _CourseFilesPageState extends State<CourseFilesPage> {
         if (launched) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('已在瀏覽器中開啟'),
-                duration: Duration(seconds: 2),
+              SnackBar(
+                content: const Text('已在瀏覽器中開啟'),
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 2),
               ),
             );
           }
@@ -771,9 +773,11 @@ class _CourseFilesPageState extends State<CourseFilesPage> {
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('已複製到剪貼簿'),
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: const Text('已複製到剪貼簿'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
           ),
         );
       }

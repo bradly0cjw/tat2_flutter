@@ -17,6 +17,10 @@ class MainActivity: FlutterActivity() {
         
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WIDGET_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
+                "hasWidget" -> {
+                    val hasWidget = checkHasWidget()
+                    result.success(hasWidget)
+                }
                 "updateWidget" -> {
                     val coursesJson = call.argument<String>("courses")
                     if (coursesJson != null) {
@@ -62,6 +66,14 @@ class MainActivity: FlutterActivity() {
         
         // 通知 Widget 更新
         notifyWidgetUpdate()
+    }
+    
+    private fun checkHasWidget(): Boolean {
+        val appWidgetManager = AppWidgetManager.getInstance(this)
+        val appWidgetIds = appWidgetManager.getAppWidgetIds(
+            ComponentName(this, CourseWidgetProvider::class.java)
+        )
+        return appWidgetIds.isNotEmpty()
     }
     
     private fun notifyWidgetUpdate() {

@@ -262,7 +262,12 @@ class _OtherFeaturesPageState extends State<OtherFeaturesPage> {
       } else {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('無法開啟反饋頁面')),
+            SnackBar(
+              content: const Text('無法開啟反饋頁面'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+            ),
           );
         }
       }
@@ -323,23 +328,29 @@ class _OtherFeaturesPageState extends State<OtherFeaturesPage> {
           
           if (result == true) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('重新登入成功'),
-                backgroundColor: Colors.green,
+              SnackBar(
+                content: const Text('重新登入成功'),
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 2),
               ),
             );
           } else if (result == false) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('重新登入失敗，請檢查網路連線或帳號密碼'),
-                backgroundColor: Colors.red,
+              SnackBar(
+                content: const Text('重新登入失敗，請檢查網路連線或帳號密碼'),
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 2),
               ),
             );
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('沒有保存的帳號密碼，請重新登入'),
-                backgroundColor: Colors.orange,
+              SnackBar(
+                content: const Text('沒有保存的帳號密碼，請重新登入'),
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 2),
               ),
             );
             if (context.mounted) {

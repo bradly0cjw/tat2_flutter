@@ -55,9 +55,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (!_agreedToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('請先同意隱私權條款和使用者條款'),
-          backgroundColor: Colors.orange,
+        SnackBar(
+          content: const Text('請先同意隱私權條款和使用者條款'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
         ),
       );
       return;

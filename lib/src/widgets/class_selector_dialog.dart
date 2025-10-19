@@ -144,7 +144,12 @@ class _ClassSelectorState extends State<_ClassSelector> {
         setState(() => _isLoading = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('載入學院結構失敗')),
+            SnackBar(
+              content: const Text('載入學院結構失敗'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+            ),
           );
         }
       }
@@ -371,7 +376,12 @@ class _ProgramSelectorState extends State<_ProgramSelector> {
         setState(() => _isLoading = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('載入微學程列表失敗')),
+            SnackBar(
+              content: const Text('載入微學程列表失敗'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+            ),
           );
         }
       }

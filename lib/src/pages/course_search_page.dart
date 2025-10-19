@@ -503,6 +503,8 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
           onPressed: () {
             setState(() => _isFABExpanded = !_isFABExpanded);
           },
+          backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+          foregroundColor: Colors.white,
           child: AnimatedRotation(
             turns: _isFABExpanded ? 0.125 : 0,
             duration: const Duration(milliseconds: 200),
@@ -744,7 +746,12 @@ class _CourseSearchPageState extends State<CourseSearchPage> {
   void _deselectConflictTimes() {
     if (_userCourses == null || _userCourses!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('沒有找到用戶課表')),
+        SnackBar(
+          content: const Text('沒有找到用戶課表'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
       );
       return;
     }

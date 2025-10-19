@@ -655,6 +655,8 @@ class _AnnouncementBottomSheetState extends State<_AnnouncementBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final surfaceColor = Theme.of(context).colorScheme.surface;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return DraggableScrollableSheet(
       initialChildSize: 0.5,
       minChildSize: 0.3,
@@ -662,58 +664,60 @@ class _AnnouncementBottomSheetState extends State<_AnnouncementBottomSheet> {
       builder: (context, scrollController) {
         return Container(
           decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
+            color: surfaceColor,
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(20),
               topRight: Radius.circular(20),
             ),
           ),
-          child: Column(
-            children: [
-              // 拖動指示器
-              Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              // 標題列
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                ),
-                child: Row(
+          child: CustomScrollView(
+            controller: scrollController,
+            slivers: [
+              // 拖動指示器與標題列
+              SliverToBoxAdapter(
+                child: Column(
                   children: [
-                    Expanded(
-                      child: Text(
-                        widget.announcement.subject,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                    // 拖動指示器
+                    Container(
+                      margin: const EdgeInsets.only(top: 12, bottom: 8),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
+                    // 標題列
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.announcement.subject,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: onSurface,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.close, color: onSurface),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
               // 內容
-              Expanded(
-                child: _buildContent(scrollController),
+              SliverFillRemaining(
+                hasScrollBody: true,
+                child: _buildContent(null),
               ),
             ],
           ),
@@ -722,7 +726,7 @@ class _AnnouncementBottomSheetState extends State<_AnnouncementBottomSheet> {
     );
   }
 
-  Widget _buildContent(ScrollController scrollController) {
+  Widget _buildContent(ScrollController? scrollController) {
     if (_isLoading) {
       return const Center(
         child: Padding(
@@ -772,7 +776,6 @@ class _AnnouncementBottomSheetState extends State<_AnnouncementBottomSheet> {
     }
 
     return SingleChildScrollView(
-      controller: scrollController,
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
