@@ -29,6 +29,9 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Update Dependency
+        run: flutter pub add intl:^0.20.2
+        
       - name: Install dependencies
         run: flutter pub get
 
@@ -59,6 +62,9 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Update Dependency
+        run: flutter pub add intl:^0.20.2
+        
       - name: Install dependencies
         run: flutter pub get
 
