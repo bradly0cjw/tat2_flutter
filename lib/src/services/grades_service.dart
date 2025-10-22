@@ -1,22 +1,18 @@
 import 'package:flutter/foundation.dart';
 import '../models/grade.dart';
 import '../models/semester_grade_stats.dart';
-import 'backend_api_service.dart';
 import 'ntut_api_service.dart';
 import 'grades_cache_service.dart';
 
 /// 成績服務
 class GradesService {
   final NtutApiService _ntutApi;
-  final BackendApiService _backendApi;
   final GradesCacheService _cacheService;
 
   GradesService({
     required NtutApiService ntutApi,
-    required BackendApiService backendApi,
     GradesCacheService? cacheService,
   })  : _ntutApi = ntutApi,
-        _backendApi = backendApi,
         _cacheService = cacheService ?? GradesCacheService();
 
   /// 獲取成績（優先使用緩存）
@@ -93,25 +89,6 @@ class GradesService {
       semester: semester,
       forceRefresh: true,
     );
-  }
-
-  /// 從 Backend 獲取已緩存的成績
-  Future<List<Grade>> getGradesFromBackend({
-    required String studentId,
-    String? semester,
-  }) async {
-    try {
-      debugPrint('[GradesService] 從 Backend 獲取成績: $studentId, semester: $semester');
-      final grades = await _backendApi.getGrades(
-        studentId,
-        semester: semester,
-      );
-      debugPrint('[GradesService] 獲取到 ${grades.length} 筆成績');
-      return grades;
-    } catch (e) {
-      debugPrint('[GradesService] 從 Backend 獲取成績失敗: $e');
-      return [];
-    }
   }
 
   /// 計算學分加權平均成績（非 GPA）

@@ -6,20 +6,16 @@ import '../models/course.dart';
 import '../models/grade.dart';
 import '../models/student.dart';
 import '../services/ntut_api_service.dart';
-import '../services/backend_api_service.dart';
 
 /// NTUT 學校 Adapter
 /// 
 /// 封裝所有 NTUT 相關的 API 呼叫邏輯
 class NtutSchoolAdapter implements SchoolAdapter {
   final NtutApiService _apiService;
-  final BackendApiService _backendService;
 
   NtutSchoolAdapter({
     required NtutApiService apiService,
-    required BackendApiService backendService,
-  })  : _apiService = apiService,
-        _backendService = backendService;
+  })  : _apiService = apiService;
 
   @override
   String get schoolName => 'NTUT';
@@ -48,7 +44,7 @@ class NtutSchoolAdapter implements SchoolAdapter {
         debugPrint('[NtutAdapter] 登入失敗: ${result['message']}');
         return AuthResult.failure(message: result['message'] ?? '登入失敗');
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
       debugPrint('[NtutAdapter] 登入錯誤: $e');
       throw SchoolAdapterException('NTUT 登入錯誤: $e', e);
     }
@@ -76,8 +72,10 @@ class NtutSchoolAdapter implements SchoolAdapter {
       debugPrint('[NtutAdapter] 獲取學生資料: $studentId');
       
       // NTUT API 目前沒有專門的學生資料端點
-      // 可以從登入結果中取得基本資料，或從後端獲取
-      return await _backendService.getProfile(studentId);
+      // 需要從其他來源組合學生資料
+      // TODO: 實作學生資料獲取邏輯
+      debugPrint('[NtutAdapter] 學生資料功能待實作');
+      return null;
     } catch (e) {
       debugPrint('[NtutAdapter] 獲取學生資料失敗: $e');
       
@@ -230,15 +228,10 @@ class NtutSchoolAdapter implements SchoolAdapter {
     try {
       debugPrint('[NtutAdapter] 同步資料到後端: $studentId');
       
-      final result = await _backendService.syncData(
-        studentId: studentId,
-        student: student,
-        courses: courses,
-        grades: grades,
-      );
-      
-      debugPrint('[NtutAdapter] 同步完成: ${result['synced']}');
-      return result;
+      // 後端同步功能已移除，這是保留的空方法以維持向後兼容
+      // TODO: 如果需要數據同步功能，請實作新的同步機制
+      debugPrint('[NtutAdapter] 後端同步功能已移除');
+      return {'synced': 0, 'message': '後端同步功能已移除'};
     } catch (e) {
       debugPrint('[NtutAdapter] 同步失敗: $e');
       throw SchoolAdapterException('同步到後端失敗: $e', e);

@@ -228,7 +228,7 @@ class _WeeklyCourseTableTatState extends State<WeeklyCourseTableTat> {
       child: Row(
         children: [
           // 左上角空格（節次欄位置）
-          SizedBox(width: sectionWidth),
+          const SizedBox(width: sectionWidth),
           // 星期列
           ...weekDays.map((day) {
             return Expanded(

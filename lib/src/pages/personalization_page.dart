@@ -328,7 +328,7 @@ class _PersonalizationPageState extends State<PersonalizationPage> {
                           ],
                         ),
                         child: isSelected
-                            ? Stack(
+                            ? const Stack(
                                 alignment: Alignment.center,
                                 children: [
                                   Icon(

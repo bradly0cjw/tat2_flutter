@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../services/ntut_api_service.dart';
-import '../services/auth_service.dart';
 import '../providers/auth_provider_v2.dart';
 import '../services/course_color_service.dart';
 import '../services/widget_service.dart' hide debugPrint; // 導入 Widget 服務,但隱藏 debugPrint 避免衝突
 import '../widgets/weekly_course_table.dart';
-import '../widgets/weekly_course_table_tat.dart';
 import 'course_syllabus_page.dart';
 
 class CourseTablePage extends StatefulWidget {

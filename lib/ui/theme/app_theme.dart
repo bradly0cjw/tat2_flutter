@@ -175,15 +175,15 @@ class AppTheme {
         indicatorColor: colorScheme.onSurface.withOpacity(0.12),
         indicatorShape: const StadiumBorder(),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        iconTheme: MaterialStateProperty.resolveWith((states) {
-          final selected = states.contains(MaterialState.selected);
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
           return IconThemeData(
             color: selected ? colorScheme.primary : colorScheme.onSurfaceVariant,
             size: selected ? 24 : 22, // 圖標略小，選中稍大
           );
         }),
-        labelTextStyle: MaterialStateProperty.resolveWith((states) {
-          final selected = states.contains(MaterialState.selected);
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
           return TextStyle(
             color: selected ? colorScheme.primary : colorScheme.onSurfaceVariant,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
@@ -397,15 +397,15 @@ class AppTheme {
         indicatorColor: colorScheme.onSurface.withOpacity(0.14),
         indicatorShape: const StadiumBorder(),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        iconTheme: MaterialStateProperty.resolveWith((states) {
-          final selected = states.contains(MaterialState.selected);
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
           return IconThemeData(
             color: selected ? colorScheme.primary : colorScheme.onSurfaceVariant,
             size: selected ? 24 : 22,
           );
         }),
-        labelTextStyle: MaterialStateProperty.resolveWith((states) {
-          final selected = states.contains(MaterialState.selected);
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
           return TextStyle(
             color: selected ? colorScheme.primary : colorScheme.onSurfaceVariant,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,

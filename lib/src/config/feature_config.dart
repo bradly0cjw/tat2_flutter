@@ -14,7 +14,7 @@ class FeatureConfig {
     'grades': true,              // 成績
     
     // 其他功能
-    'credits': false,            // 學分 - 已隱藏
+    'credits': true,             // 學分 - 已啟用
     'campus_map': true,          // 校園地圖
     'empty_classroom': true,     // 空教室查詢
     'club_announcements': false, // 社團公告 - 已隱藏
@@ -56,7 +56,6 @@ class FeatureConfig {
 
     // 這裡可以記錄每個功能被隱藏的原因，方便日後維護
     const disabledReasons = {
-      'credits': '功能暫時不可用',
       'club_announcements': '功能暫時不可用',
       'messages': '功能暫時不可用',
       'food_map': '功能暫時不可用',

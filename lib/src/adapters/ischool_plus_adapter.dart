@@ -1,9 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../adapters/ntut_school_adapter.dart';
 import '../services/ischool_plus_service.dart';
-import '../models/ischool_plus/course_info.dart';
-import '../models/ischool_plus/announcement.dart';
-import '../models/ischool_plus/course_file.dart';
 
 /// iSchool+ Adapter Extension
 /// 
@@ -46,7 +43,7 @@ class ISchoolPlusAdapter {
       }
       
       return success;
-    } catch (e, stackTrace) {
+    } catch (e) {
       debugPrint('[ISchoolPlus] 登入錯誤: $e');
       
       if (_isSessionExpired(e)) {
