@@ -204,7 +204,7 @@ class AuthManager {
       }
       
       return result;
-    } catch (e, stackTrace) {
+    } catch (e) {
       _authState = AuthState.offline;
       debugPrint('[AuthManager] 登入錯誤: $e');
       return AuthResult.failure(message: '登入錯誤: $e');

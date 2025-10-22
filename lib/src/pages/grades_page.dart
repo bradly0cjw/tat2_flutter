@@ -167,6 +167,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
     );
   }
 
+  @override
   void dispose() {
     _tabController.dispose();
     super.dispose();

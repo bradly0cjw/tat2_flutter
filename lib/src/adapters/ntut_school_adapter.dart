@@ -48,7 +48,7 @@ class NtutSchoolAdapter implements SchoolAdapter {
         debugPrint('[NtutAdapter] 登入失敗: ${result['message']}');
         return AuthResult.failure(message: result['message'] ?? '登入失敗');
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
       debugPrint('[NtutAdapter] 登入錯誤: $e');
       throw SchoolAdapterException('NTUT 登入錯誤: $e', e);
     }

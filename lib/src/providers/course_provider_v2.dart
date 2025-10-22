@@ -101,7 +101,7 @@ class CourseProviderV2 with ChangeNotifier {
 
       debugPrint('[CourseProvider] 成功獲取 ${_courses.length} 門課程');
       return true;
-    } catch (e, stackTrace) {
+    } catch (e) {
       _error = e.toString();
       _isLoading = false;
       notifyListeners();

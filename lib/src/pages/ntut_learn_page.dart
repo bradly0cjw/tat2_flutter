@@ -22,7 +22,7 @@ class _NtutLearnPageState extends State<NtutLearnPage> {
   bool _isLoggedIn = false;
   bool _isInitialized = false;
   bool _isLoadingCourses = false;
-  bool _isSyncing = false; // 防止重複同步
+  final bool _isSyncing = false; // 防止重複同步
   
   // 從課表取得的課程列表
   List<Map<String, dynamic>> _courses = [];

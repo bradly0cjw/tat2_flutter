@@ -46,7 +46,7 @@ class BadgeService extends ChangeNotifier {
   /// 遷移舊的紅點數據（從 read_items_ 改為 unread_）
   Future<void> _migrateOldData() async {
     final keys = _prefs?.getKeys() ?? {};
-    final oldPrefix = '${_keyPrefix}read_items_';
+    const oldPrefix = '${_keyPrefix}read_items_';
     
     // 刪除所有舊的 read_items_ 數據
     for (final key in keys) {

@@ -280,10 +280,10 @@ class _WeeklyCourseTableState extends State<WeeklyCourseTable> {
     
     // 午休欄位置（在第4節後）
     final lunchBreakPosition = hasLunchBreak ? labelHeight + (4 - minSection) * sectionHeight : null;
-    final lunchBreakActualHeight = lunchBreakHeight + lunchBreakTopMargin + lunchBreakBottomMargin;
+    const lunchBreakActualHeight = lunchBreakHeight + lunchBreakTopMargin + lunchBreakBottomMargin;
     
     // 構建課表內容
-    final courseTableContent = Container(
+    final courseTableContent = SizedBox(
       width: width,
       height: totalHeight,
       child: Stack(

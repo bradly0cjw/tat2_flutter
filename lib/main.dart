@@ -10,6 +10,8 @@ import 'src/services/backend_api_service.dart';
 import 'src/services/theme_settings_service.dart';
 import 'src/services/navigation_config_service.dart';
 import 'src/services/course_color_service.dart';
+import 'src/services/grades_service.dart';
+import 'src/services/credits_service.dart';
 import 'src/providers/auth_provider_v2.dart';
 import 'src/providers/calendar_provider.dart';
 import 'src/core/auth/auth_manager.dart';
@@ -98,6 +100,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late final AuthManager authManager;
   late final AuthService authService;
   late final AuthProviderV2 authProvider;
+  late final GradesService gradesService;
+  late final CreditsService creditsService;
 
   @override
   void initState() {
@@ -116,6 +120,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     
     // 創建向後兼容的 AuthService（注入 AuthManager）
     authService = AuthService(ntutApi, authManager: authManager);
+    
+    // 創建成績和學分服務
+    gradesService = GradesService(
+      ntutApi: ntutApi,
+      backendApi: backendService,
+    );
+    creditsService = CreditsService(
+      gradesService: gradesService,
+    );
     
     // 創建 Provider
     authProvider = AuthProviderV2(authManager: authManager);
@@ -211,6 +224,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ChangeNotifierProvider<NavigationConfigService>.value(value: widget.navigationConfig),
         ChangeNotifierProvider<CourseColorService>.value(value: widget.courseColorService),
         ChangeNotifierProvider(create: (_) => CalendarProvider()),
+        
+        // 學分和成績服務
+        Provider<GradesService>.value(value: gradesService),
+        Provider<CreditsService>.value(value: creditsService),
         
         // 向後兼容層（舊代碼使用，新代碼請避免直接使用）
         Provider<NtutApiService>.value(value: ntutApi),

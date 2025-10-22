@@ -7,6 +7,8 @@ class Grade {
   final String? grade;
   final double? score; // 數字成績 (0-100)
   final double? gradePoint;
+  final String? openClass; // 開課班級（用於學分計算）
+  final String? category; // 課程類別（用於學分計算）
   final Map<String, dynamic>? extra;
 
   Grade({
@@ -17,6 +19,8 @@ class Grade {
     this.grade,
     this.score,
     this.gradePoint,
+    this.openClass,
+    this.category,
     this.extra,
   });
 
@@ -45,6 +49,8 @@ class Grade {
       grade: json['grade'],
       score: json['score']?.toDouble(),
       gradePoint: json['gradePoint']?.toDouble() ?? json['grade_point']?.toDouble(),
+      openClass: json['openClass'] ?? json['open_class'],
+      category: json['category'],
       extra: extraData,
     );
   }
@@ -58,6 +64,8 @@ class Grade {
       'grade': grade,
       'score': score,
       'gradePoint': gradePoint,
+      if (openClass != null) 'openClass': openClass,
+      if (category != null) 'category': category,
       if (extra != null) 'extra': extra,
     };
   }

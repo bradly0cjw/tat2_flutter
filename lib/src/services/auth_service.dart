@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import '../core/auth/auth_manager.dart';
 import '../core/auth/auth_credential.dart';
 import 'ntut_api_service.dart';
@@ -20,7 +19,7 @@ class AuthService {
     if (_authManager != null) {
       // 使用新的 AuthManager
       final credential = AuthCredential(username: studentId, password: password);
-      await _authManager!.saveCredentials(credential);
+      await _authManager.saveCredentials(credential);
     } else {
       // 舊版向後兼容邏輯(如果沒有注入 AuthManager)
       print('[Auth] 使用舊版本的憑證儲存方式');
@@ -33,7 +32,7 @@ class AuthService {
   Future<Map<String, String>?> getSavedCredentials() async {
     if (_authManager != null) {
       // 使用新的 AuthManager
-      final credential = await _authManager!.loadCredentials();
+      final credential = await _authManager.loadCredentials();
       if (credential != null) {
         return {
           'studentId': credential.username,
@@ -51,7 +50,7 @@ class AuthService {
   /// 清除本地存儲的帳號密碼
   Future<void> clearCredentials() async {
     if (_authManager != null) {
-      await _authManager!.clearCredentials();
+      await _authManager.clearCredentials();
     }
     print('[Auth] 已清除本地帳號密碼');
   }
