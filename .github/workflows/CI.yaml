@@ -25,12 +25,12 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.35.x' 
+          flutter-version: '3.24.x' 
           channel: 'stable'
           cache: true
 
-      - name: Update Dependency
-        run: flutter pub add intl:^0.20.2
+      # - name: Update Dependency
+      #   run: flutter pub add intl:^0.20.2
         
       - name: Install dependencies
         run: flutter pub get
@@ -58,12 +58,12 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.35.x'
+          flutter-version: '3.24.x'
           channel: 'stable'
           cache: true
 
-      - name: Update Dependency
-        run: flutter pub add intl:^0.20.2
+      # - name: Update Dependency
+      #   run: flutter pub add intl:^0.20.2
         
       - name: Install dependencies
         run: flutter pub get
