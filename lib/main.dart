@@ -6,7 +6,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'src/services/ntut_api_service.dart';
 import 'src/services/auth_service.dart';
-import 'src/services/backend_api_service.dart';
 import 'src/services/theme_settings_service.dart';
 import 'src/services/navigation_config_service.dart';
 import 'src/services/course_color_service.dart';
@@ -95,7 +94,6 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late final NtutApiService ntutApi;
-  late final BackendApiService backendService;
   late final NtutSchoolAdapter schoolAdapter;
   late final AuthManager authManager;
   late final AuthService authService;
@@ -109,12 +107,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     
     // 創建核心服務實例
     ntutApi = NtutApiService();
-    backendService = BackendApiService();
     
     // 創建 SchoolAdapter 和 AuthManager
     schoolAdapter = NtutSchoolAdapter(
       apiService: ntutApi,
-      backendService: backendService,
     );
     authManager = AuthManager(schoolAdapter);
     
@@ -124,10 +120,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     // 創建成績和學分服務
     gradesService = GradesService(
       ntutApi: ntutApi,
-      backendApi: backendService,
     );
     creditsService = CreditsService(
       gradesService: gradesService,
+      ntutApi: ntutApi,
     );
     
     // 創建 Provider
@@ -231,7 +227,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         
         // 向後兼容層（舊代碼使用，新代碼請避免直接使用）
         Provider<NtutApiService>.value(value: ntutApi),
-        Provider<BackendApiService>.value(value: backendService),
         Provider<AuthService>.value(value: authService),
       ],
       child: Consumer<ThemeSettingsService>(

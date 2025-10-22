@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/calendar_event.dart';
 
@@ -11,6 +11,9 @@ class CalendarService {
   
   static const String _cacheKey = 'calendar_events_cache';
   static const String _cacheTimeKey = 'calendar_events_cache_time';
+
+  /// Dio 實例
+  final Dio _dio = Dio();
 
   /// 學校事件快取（記憶體快取）
   List<CalendarEvent>? _cachedSchoolEvents;
@@ -40,10 +43,12 @@ class CalendarService {
 
     // 從網路獲取
     try {
-      final response = await http.get(Uri.parse(_calendarJsonUrl));
+      final response = await _dio.get(_calendarJsonUrl);
       
       if (response.statusCode == 200) {
-        final List<dynamic> jsonList = json.decode(response.body);
+        final List<dynamic> jsonList = response.data is String 
+            ? json.decode(response.data) 
+            : response.data;
         
         // 去重：使用 Map 以 uid 為 key 來過濾重複事件
         final Map<String, CalendarEvent> eventMap = {};

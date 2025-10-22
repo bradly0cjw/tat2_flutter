@@ -3,19 +3,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/course_credit_models.dart';
 import '../models/grade.dart';
-import '../connectors/ntut_course_connector.dart';
+import 'ntut_api_service.dart';
 import 'grades_service.dart';
 
 /// 學分計算服務
 class CreditsService {
   final GradesService _gradesService;
+  final NtutApiService _ntutApi;
   
   // 記憶體緩存，提升效能
   final Map<String, Map<String, String>> _syllabusCache = {};
   
   CreditsService({
     required GradesService gradesService,
-  }) : _gradesService = gradesService;
+    NtutApiService? ntutApi,
+  })  : _gradesService = gradesService,
+        _ntutApi = ntutApi ?? NtutApiService();
 
   static const String _graduationInfoKey = 'graduation_information';
   static const String _syllabusCacheKey = 'course_syllabus_cache';
@@ -73,45 +76,45 @@ class CreditsService {
     return studentId.substring(0, 3);
   }
 
-  /// 獲取所有學年度列表（使用 NtutCourseConnector）
+  /// 獲取所有學年度列表（使用 NtutCourseService）
   Future<List<String>> getYearList() async {
     try {
-      return await NtutCourseConnector.getYearList();
+      return await _ntutApi.course.getYearList();
     } catch (e) {
       debugPrint('[CreditsService] 獲取學年度列表失敗: $e');
       rethrow;
     }
   }
 
-  /// 獲取學制列表（使用 NtutCourseConnector）
+  /// 獲取學制列表（使用 NtutCourseService）
   Future<List<Map<String, dynamic>>> getDivisionList(String year) async {
     try {
-      return await NtutCourseConnector.getDivisionList(year);
+      return await _ntutApi.course.getDivisionList(year);
     } catch (e) {
       debugPrint('[CreditsService] 獲取學制列表失敗: $e');
       rethrow;
     }
   }
 
-  /// 獲取系所列表（使用 NtutCourseConnector）
+  /// 獲取系所列表（使用 NtutCourseService）
   Future<List<Map<String, dynamic>>> getDepartmentList(
     Map<String, String> code,
   ) async {
     try {
-      return await NtutCourseConnector.getDepartmentList(code);
+      return await _ntutApi.course.getDepartmentList(code);
     } catch (e) {
       debugPrint('[CreditsService] 獲取系所列表失敗: $e');
       rethrow;
     }
   }
 
-  /// 獲取課程標準資訊（使用 NtutCourseConnector）
+  /// 獲取課程標準資訊（使用 NtutCourseService）
   Future<GraduationInformation?> getCreditInfo(
     Map<String, String> code,
     String departmentName,
   ) async {
     try {
-      final result = await NtutCourseConnector.getCreditInfo(code, departmentName);
+      final result = await _ntutApi.course.getCreditInfo(code, departmentName);
       if (result == null) return null;
 
       // 將結果轉換為 GraduationInformation
@@ -148,7 +151,7 @@ class CreditsService {
     
     // 查詢 API
     try {
-      final syllabus = await NtutCourseConnector.getCourseSyllabus(courseId);
+      final syllabus = await _ntutApi.course.getPublicCourseSyllabus(courseId);
       if (syllabus != null) {
         _syllabusCache[courseId] = syllabus;
         // 儲存到持久化緩存

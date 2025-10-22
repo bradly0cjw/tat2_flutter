@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../models/empty_classroom.dart';
-import '../services/backend_api_service.dart';
+import '../services/ntut_api_service.dart';
 
 /// 空教室查詢頁面 - Material Design 3 風格
 class EmptyClassroomPage extends StatefulWidget {
@@ -293,8 +293,8 @@ class _EmptyClassroomPageState extends State<EmptyClassroomPage>
     });
 
     try {
-      final apiService = context.read<BackendApiService>();
-      final response = await apiService.getEmptyClassrooms(
+      final ntutApi = context.read<NtutApiService>();
+      final response = await ntutApi.courseSearch.getEmptyClassrooms(
         dayOfWeek: _selectedDay,
         year: '114',
         semester: '1',

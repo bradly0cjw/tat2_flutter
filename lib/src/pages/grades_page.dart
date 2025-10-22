@@ -5,7 +5,6 @@ import '../models/grade.dart';
 import '../models/semester_grade_stats.dart';
 import '../services/grades_service.dart';
 import '../services/ntut_api_service.dart';
-import '../services/backend_api_service.dart';
 import '../services/auth_service.dart';
 import '../providers/auth_provider_v2.dart';
 import '../widgets/grade_item_widget.dart';
@@ -65,10 +64,8 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
       
       // 使用 Provider 中的共享實例
       final ntutApi = context.read<NtutApiService>();
-      final backendApi = BackendApiService();
       _gradesService = GradesService(
         ntutApi: ntutApi,
-        backendApi: backendApi,
       );
       
       final authService = context.read<AuthService>();
