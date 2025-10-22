@@ -2,8 +2,8 @@ name: Flutter CI
 
 env:
   TZ: Asia/Taipei
-  SIGN_ON_PUSH_IOS: false
-  SIGN_ON_PUSH_ANDROID: false
+  SIGN_ON_PUSH_IOS: 'false'
+  SIGN_ON_PUSH_ANDROID: 'false'
 
 on:
   push:
@@ -63,12 +63,12 @@ jobs:
         run: flutter pub get
         
       - name: Decode Android Keystore
-        if: (github.event_name == 'workflow_dispatch' && inputs.sign_android == true) || (github.event_name != 'workflow_dispatch' && env.SIGN_ON_PUSH_ANDROID == true)
+        if: (github.event_name == 'workflow_dispatch' && inputs.sign_android == true) || (github.event_name != 'workflow_dispatch' && env.SIGN_ON_PUSH_ANDROID == 'true')
         run: |
           echo "${{ secrets.ANDROID_SIGN_KEY_BASE64 }}" | base64 --decode > android/app/upload-keystore.jks
 
       - name: Create key.properties
-        if: (github.event_name == 'workflow_dispatch' && inputs.sign_android == true) || (github.event_name != 'workflow_dispatch' && env.SIGN_ON_PUSH_ANDROID == true)
+        if: (github.event_name == 'workflow_dispatch' && inputs.sign_android == true) || (github.event_name != 'workflow_dispatch' && env.SIGN_ON_PUSH_ANDROID == 'true')
         run: |
           echo "storeFile=app/upload-keystore.jks" > android/key.properties
           echo "storePassword=${{ secrets.ANDROID_SIGNING_STORE_PASSWORD }}" >> android/key.properties
@@ -107,7 +107,7 @@ jobs:
         run: flutter pub get
         
       - name: Import Code Signing Files
-        if: (github.event_name == 'workflow_dispatch' && inputs.sign_ios == true) || (github.event_name != 'workflow_dispatch' && env.SIGN_ON_PUSH_IOS == true)
+        if: (github.event_name == 'workflow_dispatch' && inputs.sign_ios == true) || (github.event_name != 'workflow_dispatch' && env.SIGN_ON_PUSH_IOS == 'true')
         uses: apple-actions/import-codesign-certs@v3
         with:
           p12-base64: ${{ secrets.IOS_BUILD_CERTIFICATE_BASE64 }}
@@ -115,15 +115,15 @@ jobs:
           provisioning-profiles-base64: ${{ secrets.IOS_BUILD_PROVISION_PROFILE_BASE64 }}
 
       - name: Build iOS IPA (Signed)
-        if: (github.event_name == 'workflow_dispatch' && inputs.sign_ios == true) || (github.event_name != 'workflow_dispatch' && env.SIGN_ON_PUSH_IOS == true)
+        if: (github.event_name == 'workflow_dispatch' && inputs.sign_ios == true) || (github.event_name != 'workflow_dispatch' && env.SIGN_ON_PUSH_IOS == 'true')
         run: flutter build ipa --release
 
       - name: Build iOS IPA (Unsigned)
-        if: (github.event_name == 'workflow_dispatch' && inputs.sign_ios == false) || (github.event_name != 'workflow_dispatch' && env.SIGN_ON_PUSH_IOS == false)
+        if: (github.event_name == 'workflow_dispatch' && inputs.sign_ios == false) || (github.event_name != 'workflow_dispatch' && env.SIGN_ON_PUSH_IOS == 'false')
         run: flutter build ipa --release --no-codesign
 
       - name: Upload IPA Artifact
-        if: (github.event_name == 'workflow_dispatch' && inputs.sign_ios == true) || (github.event_name != 'workflow_dispatch' && env.SIGN_ON_PUSH_IOS == true)
+        if: (github.event_name == 'workflow_dispatch' && inputs.sign_ios == true) || (github.event_name != 'workflow_dispatch' && env.SIGN_ON_PUSH_IOS == 'true')
         uses: actions/upload-artifact@v4
         with:
           name: release-ipa-${{ env.BUILD_TIMESTAMP }}.ipa
