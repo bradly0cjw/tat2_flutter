@@ -81,7 +81,7 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk-${{ env.BUILD_TIMESTAMP }}
+          name: release-apk-${{ env.BUILD_TIMESTAMP }}.apk
           path: build/app/outputs/flutter-apk/app-release.apk
 
   build-ios:
@@ -101,7 +101,7 @@ jobs:
           cache: true
           
       - name: Generate build timestamp
-        run: echo "BUILD_TIMESTAMP=$(date +'%Y%m%d-%H%M')" >> $GITHUB_ZENV
+        run: echo "BUILD_TIMESTAMP=$(date +'%Y%m%d-%H%M')" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: flutter pub get
@@ -126,5 +126,6 @@ jobs:
         if: (github.event_name == 'workflow_dispatch' && inputs.sign_ios == true) || (github.event_name != 'workflow_dispatch' && env.SIGN_ON_PUSH_IOS == true)
         uses: actions/upload-artifact@v4
         with:
-          name: release-ipa-${{ env.BUILD_TIMESTAMP }}
+          name: release-ipa-${{ env.BUILD_TIMESTAMP }}.ipa
           path: build/ios/ipa/*.ipa
+
