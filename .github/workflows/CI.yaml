@@ -37,7 +37,19 @@ jobs:
 
       # - name: Analyze project source
       #   run: flutter analyze
+      - name: Decode Android Keystore
+        if: ${{ secrets.ANDROID_SIGNING_KEY_BASE64 != '' }}
+        run: |
+          echo "${{ secrets.ANDROID_SIGNING_KEY_BASE64 }}" | base64 --decode > android/app/upload-keystore.jks
 
+      - name: Create key.properties
+        if: ${{ secrets.ANDROID_SIGNING_KEY_BASE64 != '' }}
+        run: |
+          echo "storeFile=upload-keystore.jks" > android/key.properties
+          echo "storePassword=${{ secrets.ANDROID_SIGNING_STORE_PASSWORD }}" >> android/key.properties
+          echo "keyAlias=${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}" >> android/key.properties
+          echo "keyPassword=${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}" >> android/key.properties
+          
       - name: Build Android APK
         run: flutter build apk --release
 
@@ -65,16 +77,31 @@ jobs:
       # - name: Update Dependency
       #   run: flutter pub add intl:^0.20.2
         
+
+      - name: Import Code Signing Files
+        if: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' }}
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-base64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.P12_PASSWORD }}
+          provisioning-profiles-base64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+
       - name: Install dependencies
         run: flutter pub get
 
       # - name: Analyze project source
       #   run: flutter analyze
 
-      - name: Build iOS IPA
+      - name: Build iOS IPA (Signed)
+        if: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' }}
+        run: flutter build ipa --release
+
+      - name: Build iOS IPA (Unsigned)
+        if: ${{ secrets.BUILD_CERTIFICATE_BASE64 == '' }}
         run: flutter build ipa --release --no-codesign
 
       - name: Upload IPA Artifact
+        if: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: release-ipa
